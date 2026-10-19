@@ -95,7 +95,7 @@ function Shell() {
   }
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-[430px]">
+    <div className="relative mx-auto min-h-dvh w-full max-w-[420px]">
       {!ready ? (
         <div className="grid min-h-dvh place-items-center">
           <p className="text-[15px] font-medium tracking-wide text-white/80">璃记</p>
@@ -111,9 +111,9 @@ function Shell() {
               transition={
                 reduceMotion
                   ? { duration: 0.01 }
-                  : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }
+                  : { type: "spring", stiffness: 380, damping: 36 }
               }
-              className={showNav ? "pb-36" : "pb-16"}
+              className={showNav ? "pb-28" : "pb-12"}
             >
               {screen}
             </motion.main>

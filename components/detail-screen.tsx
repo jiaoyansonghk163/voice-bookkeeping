@@ -16,45 +16,40 @@ export function DetailScreen({
   onBack: () => void;
 }) {
   return (
-    <div data-screen="detail" className="px-5 pt-6">
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label="返回账本"
-        className="chip grid size-10 place-items-center rounded-full text-white"
-      >
-        <ChevronLeft size={22} strokeWidth={1.75} />
+    <div data-screen="detail" className="px-5 pt-4">
+      <button type="button" onClick={onBack} aria-label="返回账本" className="grid size-10 place-items-center text-blue">
+        <ChevronLeft size={26} strokeWidth={2} />
       </button>
 
       {!transaction ? (
-        <div className="mt-16">
-          <h1 className="text-[34px] font-medium text-white">找不到这笔</h1>
-          <p className="mt-3 text-[15px] text-white/60">它可能已经不在这本账上了。</p>
+        <div className="mt-12">
+          <h1 className="text-[34px] font-semibold tracking-tight">找不到这笔</h1>
+          <p className="mt-2 text-[15px] text-quiet">它可能已经不在这本账上了。</p>
         </div>
       ) : (
         <>
-          <p className="mt-10 text-[15px] text-white/70">{CATEGORIES[transaction.category].label}</p>
-          <h1 className="mt-2 text-[34px] font-medium tracking-tight text-white">{transaction.title}</h1>
-          <Amount value={transaction.amount} size="xl" tone="light" className="mt-4" />
+          <p className="mt-6 text-[13px] text-quiet">{CATEGORIES[transaction.category].label}</p>
+          <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-tight">{transaction.title}</h1>
+          <Amount value={transaction.amount} size="hero" className="mt-6" />
 
-          <dl className="glass glass-clip mt-8">
-            <div className="hairline flex items-center justify-between px-4 py-4">
+          <dl className="material mt-8 overflow-hidden">
+            <div className="hairline flex items-center justify-between px-4 py-3.5">
               <dt className="text-[15px] text-quiet">时间</dt>
-              <dd className="text-[16px]">{formatDetailStamp(new Date(transaction.createdAt), now)}</dd>
+              <dd className="text-[17px]">{formatDetailStamp(new Date(transaction.createdAt), now)}</dd>
             </div>
-            <div className="hairline flex items-center justify-between px-4 py-4">
+            <div className="hairline flex items-center justify-between px-4 py-3.5">
               <dt className="text-[15px] text-quiet">分类</dt>
-              <dd className="text-[16px]">{CATEGORIES[transaction.category].label}</dd>
+              <dd className="text-[17px]">{CATEGORIES[transaction.category].label}</dd>
             </div>
-            <div className="flex items-center justify-between px-4 py-4">
+            <div className="flex items-center justify-between px-4 py-3.5">
               <dt className="text-[15px] text-quiet">来源</dt>
-              <dd className="text-[16px]">{transaction.source === "sample" ? "示例数据" : "语音记入"}</dd>
+              <dd className="text-[17px]">{transaction.source === "sample" ? "示例数据" : "语音记入"}</dd>
             </div>
           </dl>
 
-          <figure className="glass mt-3 px-5 py-5">
+          <figure className="material mt-3 px-4 py-4">
             <figcaption className="text-[13px] text-quiet">原话</figcaption>
-            <blockquote className="mt-2 text-[22px] leading-snug">「{transaction.transcript}」</blockquote>
+            <blockquote className="mt-1 text-[20px] leading-snug">「{transaction.transcript}」</blockquote>
           </figure>
         </>
       )}

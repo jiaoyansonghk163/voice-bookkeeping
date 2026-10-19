@@ -40,35 +40,30 @@ export function InsightsScreen({
   const total = sumAmounts(monthItems);
 
   return (
-    <div data-screen="categories" className="px-5 pt-7">
-      <header className="flex items-center justify-between">
-        <p className="text-[15px] font-medium text-white">璃记</p>
-        <p className="chip rounded-full px-3 py-1 text-[12px] text-white/85">示例</p>
-      </header>
+    <div data-screen="categories" className="px-5 pt-8">
+      <p className="text-[13px] text-quiet">{formatMonth(now)}</p>
+      <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-tight">分类</h1>
+      <p className="mt-10 text-[13px] text-quiet">本月支出</p>
+      <Amount value={total} size="hero" className="mt-2" />
+      <p className="mt-3 text-[15px] text-quiet">{monthItems.length} 笔</p>
 
-      <p className="mt-12 text-[15px] text-white/70">本月支出</p>
-      <Amount value={total} size="xl" tone="light" className="mt-2" />
-      <p className="mt-4 text-[15px] text-white/60">
-        {formatMonth(now)} · {monthItems.length} 笔
-      </p>
-
-      <div className="glass glass-clip mt-8">
-        {slices.length === 0 && <p className="px-5 py-12 text-center text-[17px]">这个月还没有支出</p>}
+      <div className="material mt-8 overflow-hidden">
+        {slices.length === 0 && <p className="px-4 py-10 text-center text-[17px] text-quiet">这个月还没有支出</p>}
         {slices.map((slice, index) => (
           <div key={slice.category} className="hairline px-4 py-3.5">
             <div className="flex items-center gap-3">
               <CategoryIcon category={slice.category} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-[17px] font-medium">{CATEGORIES[slice.category].label}</p>
-                  <p className="font-num text-[17px] font-medium">¥{formatYuan(slice.total)}</p>
+                  <p className="text-[17px]">{CATEGORIES[slice.category].label}</p>
+                  <p className="font-num text-[17px]">¥{formatYuan(slice.total)}</p>
                 </div>
-                <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-black/8">
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/6">
                   <motion.div
-                    className="h-full rounded-full bg-ink"
+                    className="h-full rounded-full bg-blue"
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.max(percents[index] ?? 0, 3)}%` }}
-                    transition={{ type: "spring", stiffness: 120, damping: 22, delay: index * 0.04 }}
+                    animate={{ width: `${Math.max(percents[index] ?? 0, 4)}%` }}
+                    transition={{ type: "spring", stiffness: 140, damping: 24, delay: index * 0.03 }}
                   />
                 </div>
                 <p className="mt-1.5 text-[12px] text-quiet">
@@ -80,7 +75,7 @@ export function InsightsScreen({
         ))}
       </div>
 
-      <button type="button" onClick={onReset} className="mx-auto mt-6 block px-3 py-2 text-[13px] text-white/55">
+      <button type="button" onClick={onReset} className="mx-auto mt-8 block text-[13px] text-blue">
         恢复示例数据
       </button>
     </div>

@@ -13,7 +13,7 @@ import type { CategoryId, ParsedExpense } from "@/lib/types";
 
 type Phase = "idle" | "listening" | "transcribing" | "review" | "success" | "error";
 
-const sheetSpring = { type: "spring" as const, stiffness: 320, damping: 34, mass: 0.86 };
+const sheetSpring = { type: "spring" as const, stiffness: 380, damping: 36, mass: 0.85 };
 const easeOut = [0.22, 1, 0.36, 1] as const;
 
 export function VoiceSheet({
@@ -153,7 +153,7 @@ export function VoiceSheet({
           <motion.button
             type="button"
             aria-label="关闭"
-            className="absolute inset-0 bg-[#05080c]/45 backdrop-blur-[6px]"
+            className="absolute inset-0 bg-black/20"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -163,13 +163,13 @@ export function VoiceSheet({
             role="dialog"
             aria-modal="true"
             aria-label="语音记账"
-            className="glass glass-clip absolute inset-x-0 bottom-0 mx-auto flex max-h-[min(780px,94dvh)] w-full max-w-[430px] flex-col rounded-b-none px-5 pt-3 pb-[max(1.4rem,env(safe-area-inset-bottom))]"
+            className="sheet absolute inset-x-0 bottom-0 mx-auto flex max-h-[min(740px,92dvh)] w-full max-w-[420px] flex-col overflow-y-auto px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
             initial={{ y: "108%" }}
             animate={{ y: 0 }}
             exit={{ y: "108%" }}
             transition={reduceMotion ? { duration: 0.01 } : sheetSpring}
           >
-            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-black/15" />
+            <div className="mx-auto mt-2 mb-3 h-1.5 w-9 rounded-full bg-black/15" />
             <div className="mb-1 flex items-center justify-between">
               <p className="text-[13px] text-quiet">语音记账</p>
               <button type="button" onClick={requestClose} aria-label="关闭" className="grid size-8 place-items-center text-quiet">
@@ -177,7 +177,7 @@ export function VoiceSheet({
               </button>
             </div>
 
-            <div className="min-h-[520px]">
+            <div className="pb-2">
               <AnimatePresence mode="wait">
                 {phase === "idle" && (
                   <motion.div
@@ -259,12 +259,17 @@ export function VoiceSheet({
                     exit={{ opacity: 0, y: -8 }}
                     transition={reduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 340, damping: 30 }}
                   >
-                    <p className="mt-2 text-center text-[13px] text-quiet">确认这笔</p>
-                    <Amount value={draft.amount} size="lg" className="mt-3 text-center" />
-                    <h2 className="mt-3 text-center text-[28px] font-medium">{draft.title}</h2>
-                    <p className="mt-2 text-center text-[13px] text-quiet">
-                      {categoryTouched ? "已改分类" : "自动分类"} · {categoryLabel(draft.category)}
-                    </p>
+                    <p className="mt-1 text-center text-[13px] text-quiet">确认这笔</p>
+                    <Amount value={draft.amount} size="xl" className="mt-3 text-center" />
+                    <h2 className="mt-4 text-center text-[32px] font-medium tracking-tight">{draft.title}</h2>
+                    <div className="mx-auto mt-4 flex w-fit items-center gap-2 rounded-full bg-white/55 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ background: CATEGORIES[draft.category].tint }}
+                      />
+                      <span className="text-[15px] font-medium">{categoryLabel(draft.category)}</span>
+                      <span className="text-[13px] text-quiet">{categoryTouched ? "已改分类" : "自动分类"}</span>
+                    </div>
                     <div className="mt-4 flex flex-wrap justify-center gap-2">
                       {CATEGORY_ORDER.map((category) => {
                         const active = draft.category === category;
@@ -278,7 +283,7 @@ export function VoiceSheet({
                             }}
                             className={cn(
                               "rounded-full px-3 py-1.5 text-[13px]",
-                              active ? "bg-ink text-white" : "bg-black/5 text-ink",
+                              active ? "bg-[#007aff]/12 font-medium text-blue" : "bg-black/5 text-ink",
                             )}
                           >
                             {CATEGORIES[category].label}
@@ -289,10 +294,10 @@ export function VoiceSheet({
                     <p className="mt-5 text-center text-[18px] leading-relaxed">「{draft.transcript}」</p>
                     <p className="text-center text-[12px] text-quiet">原话</p>
                     <div className="mt-6 grid grid-cols-[0.8fr_1.2fr] gap-3">
-                      <button type="button" onClick={() => start()} className="h-14 rounded-full bg-black/6 text-[16px]">
+                      <button type="button" onClick={() => start()} className="btn-plain h-[50px] rounded-[14px] text-[17px]">
                         再说一次
                       </button>
-                      <button type="button" onClick={confirm} className="btn-ink h-14 rounded-full text-[16px] font-medium">
+                      <button type="button" onClick={confirm} className="btn-fill h-[50px] rounded-[14px] text-[17px] font-medium">
                         确认记入
                       </button>
                     </div>
@@ -310,7 +315,7 @@ export function VoiceSheet({
                       initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={reduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 420, damping: 18 }}
-                      className="grid size-[76px] place-items-center rounded-full bg-ink text-white shadow-[0_16px_30px_rgba(0,0,0,0.25)]"
+                      className="grid size-[72px] place-items-center rounded-full bg-blue text-white"
                     >
                       <svg viewBox="0 0 24 24" className="size-8" fill="none" aria-hidden>
                         <motion.path
@@ -336,7 +341,7 @@ export function VoiceSheet({
                     <h2 className="text-[32px] font-medium">没有听清</h2>
                     <p className="mx-auto mt-3 max-w-[16em] text-[15px] leading-6 text-quiet">{errorText}</p>
                     {transcript && <p className="mt-4 text-[18px]">「{transcript}」</p>}
-                    <button type="button" onClick={() => setPhase("idle")} className="btn-ink mt-8 h-14 w-full rounded-full text-[16px]">
+                    <button type="button" onClick={() => setPhase("idle")} className="btn-fill mt-8 h-[50px] w-full rounded-[14px] text-[17px]">
                       再说一次
                     </button>
                   </motion.div>
@@ -354,13 +359,13 @@ function ListenButton({ active, onClick, label }: { active: boolean; onClick: ()
   return (
     <div className="relative grid place-items-center">
       {active &&
-        [0, 1, 2].map((ring) => (
+        [0, 1].map((ring) => (
           <motion.span
             key={ring}
-            className="absolute size-[92px] rounded-full border border-black/15"
-            initial={{ scale: 1, opacity: 0.45 }}
-            animate={{ scale: 1.7, opacity: 0 }}
-            transition={{ duration: 1.8, repeat: Infinity, delay: ring * 0.4, ease: "easeOut" }}
+            className="absolute size-[72px] rounded-full border border-[#007aff]/30"
+            initial={{ scale: 1, opacity: 0.5 }}
+            animate={{ scale: 1.55, opacity: 0 }}
+            transition={{ duration: 1.6, repeat: Infinity, delay: ring * 0.45, ease: "easeOut" }}
           />
         ))}
       <motion.button
@@ -368,7 +373,8 @@ function ListenButton({ active, onClick, label }: { active: boolean; onClick: ()
         aria-label={label}
         onClick={onClick}
         whileTap={{ scale: 0.94 }}
-        className="orb-button size-[92px]"
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className="btn-fill relative grid size-[72px] place-items-center rounded-full"
       >
         <Mic size={34} strokeWidth={1.75} className="relative" />
       </motion.button>

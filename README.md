@@ -39,4 +39,4 @@ To try a real engine later, implement `SpeechRecognizer` and return it from `cre
 
 ## Design
 
-The screen sits on a dark, colorful wallpaper so the frosted panels actually blur something. Glass is layered: a milky fill, a bright specular edge, and a soft drop shadow. Numerals use a separate face from the Chinese text. The only solid control is the black microphone. Page changes and the record / confirm / success sequence use [Motion](https://motion.dev).
+Quiet on purpose. A soft system wallpaper, one frosted grouped list, and a sheet that springs up from the bottom. Type follows an iOS scale: a large title, a much larger amount, and secondary labels in a quieter gray. The microphone and the confirm button use system blue. Motion is limited to the sheet, the listening pulse, the success check, and a newly inserted row.

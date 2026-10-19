@@ -21,7 +21,7 @@ function useAnimatedNumber(value: number) {
     const start = performance.now();
     let frame = 0;
     const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / 640);
+      const progress = Math.min(1, (now - start) / 520);
       const eased = 1 - (1 - progress) ** 3;
       setDisplay(from + (value - from) * eased);
       if (progress < 1) frame = requestAnimationFrame(tick);
@@ -57,23 +57,17 @@ export function HomeScreen({
   }, [highlightId]);
 
   return (
-    <div data-screen="home" className="px-5 pt-7">
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="text-[15px] font-medium text-white">璃记</p>
-          <p className="mt-1 text-[13px] text-white/60">{formatFullDate(now)}</p>
-        </div>
-        <p className="chip rounded-full px-3 py-1 text-[12px] text-white/85">示例</p>
-      </header>
-
-      <p className="mt-12 text-[15px] text-white/70">今日支出</p>
-      <Amount value={todayTotal} size="xl" tone="light" className="mt-2" />
-      <p className="mt-4 text-[15px] text-white/60">
+    <div data-screen="home" className="px-5 pt-8">
+      <p className="text-[13px] text-quiet">{formatFullDate(now)}</p>
+      <h1 className="mt-1 text-[34px] font-semibold leading-none tracking-tight">账本</h1>
+      <p className="mt-10 text-[13px] text-quiet">今日支出</p>
+      <Amount value={todayTotal} size="hero" className="mt-2" />
+      <p className="mt-3 text-[15px] text-quiet">
         {today.length} 笔 · 本月 ¥{formatYuan(sumAmounts(month))}
       </p>
 
-      <div className="glass glass-clip mt-8">
-        {groups.length === 0 && <p className="px-5 py-12 text-center text-[17px]">还没有记下开销</p>}
+      <div className="material mt-8 overflow-hidden">
+        {groups.length === 0 && <p className="px-4 py-10 text-center text-[17px] text-quiet">还没有记下开销</p>}
         {groups.map((group) => (
           <section key={group.label}>
             <div className="flex items-baseline justify-between px-4 pt-4 pb-1 text-[13px] text-quiet">
@@ -88,20 +82,29 @@ export function HomeScreen({
                   id={`tx-${item.id}`}
                   type="button"
                   onClick={() => onOpen(item.id)}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={highlighted ? { opacity: 0, y: -12 } : false}
                   animate={{ opacity: 1, y: 0 }}
-                  className="hairline flex w-full items-center gap-3 px-4 py-3 text-left active:bg-black/4"
+                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  className="hairline relative flex w-full items-center gap-3 px-4 py-3 text-left active:bg-black/5"
                 >
+                  {highlighted && (
+                    <motion.span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 bg-[#007aff]/10"
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 0 }}
+                      transition={{ duration: 1.1, ease: "easeOut" }}
+                    />
+                  )}
                   <CategoryIcon category={item.category} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-[17px] font-medium">{item.title}</span>
-                      <span className="font-num shrink-0 text-[17px] font-medium">−{formatYuan(item.amount)}</span>
+                      <span className="truncate text-[17px]">{item.title}</span>
+                      <span className="font-num shrink-0 text-[17px]">−{formatYuan(item.amount)}</span>
                     </span>
                     <span className="mt-0.5 block text-[13px] text-quiet">
                       {formatClock(new Date(item.createdAt))}
                       {item.source === "voice" ? " · 语音" : ""}
-                      {highlighted ? " · 刚刚记入" : ""}
                     </span>
                   </span>
                 </motion.button>
@@ -110,7 +113,7 @@ export function HomeScreen({
           </section>
         ))}
       </div>
-      <p className="mt-5 text-center text-[12px] text-white/45">金额均为虚构示例</p>
+      <p className="mt-6 text-center text-[12px] text-quiet">金额均为虚构示例</p>
     </div>
   );
 }
