@@ -17,6 +17,12 @@ export function formatYuan(amount: number): string {
   return `${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${dec}`;
 }
 
+export function formatYuanTrim(amount: number): string {
+  const value = roundMoney(amount);
+  if (Number.isInteger(value)) return value.toLocaleString("en-US");
+  return formatYuan(value);
+}
+
 export function splitYuan(amount: number): { int: string; dec: string } {
   const formatted = formatYuan(amount);
   const dot = formatted.lastIndexOf(".");

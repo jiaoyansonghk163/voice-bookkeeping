@@ -5,13 +5,13 @@ import { CATEGORIES } from "./categories";
 import { createSampleTransactions } from "./sample-data";
 import type { ParsedExpense, Transaction } from "./types";
 
-const STORAGE_KEY = "liji.ledger.v1";
+const STORAGE_KEY = "liji.ledger.v2";
 
 interface StoreValue {
   ready: boolean;
   transactions: Transaction[];
   highlightId: string | null;
-  add: (expense: ParsedExpense) => Transaction;
+  add: (expense: ParsedExpense, at?: Date) => Transaction;
   reset: () => void;
 }
 
@@ -37,7 +37,7 @@ function loadTransactions(): Transaction[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as { version?: number; transactions?: unknown };
-      if (parsed.version === 1 && Array.isArray(parsed.transactions)) {
+      if (parsed.version === 2 && Array.isArray(parsed.transactions)) {
         const items = parsed.transactions.filter(isTransaction);
         if (items.length > 0) return items;
       }
@@ -59,20 +59,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!transactions) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, transactions }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, transactions }));
     } catch {
       /* ignore quota / private mode */
     }
   }, [transactions]);
 
-  const add = useCallback((expense: ParsedExpense) => {
+  const add = useCallback((expense: ParsedExpense, at?: Date) => {
     const transaction: Transaction = {
       id: crypto.randomUUID(),
       amount: expense.amount,
       category: expense.category,
       title: expense.title,
       transcript: expense.transcript,
-      createdAt: new Date().toISOString(),
+      createdAt: (at ?? new Date()).toISOString(),
       source: "voice",
     };
     setTransactions((current) => [transaction, ...(current ?? [])]);

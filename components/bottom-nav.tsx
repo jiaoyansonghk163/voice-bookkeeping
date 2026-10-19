@@ -1,53 +1,73 @@
-"use client";
-
-import { Mic } from "lucide-react";
-import { motion } from "motion/react";
 import { cn } from "@/lib/cn";
 
-const TABS: Array<{ id: "home" | "categories"; label: string }> = [
-  { id: "home", label: "账本" },
-  { id: "categories", label: "分类" },
-];
+export type TabId = "home" | "stats" | "budget" | "me";
 
-export function BottomNav({
-  current,
-  onChange,
-  onVoice,
-}: {
-  current: "home" | "categories";
-  onChange: (next: "home" | "categories") => void;
-  onVoice: () => void;
-}) {
+function LedgerIcon() {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center">
-      <div className="material material-thick bar pointer-events-auto flex w-full max-w-[420px] items-start justify-between px-8 pt-2 pb-[max(0.7rem,env(safe-area-inset-bottom))]">
-        {TABS.map((tab, index) => (
-          <div key={tab.id} className="contents">
-            {index === 1 && (
-              <motion.button
-                type="button"
-                aria-label="语音记账"
-                onClick={onVoice}
-                whileTap={{ scale: 0.92 }}
-                transition={{ type: "spring", stiffness: 500, damping: 28 }}
-                className="btn-fill -mt-1 grid size-[52px] place-items-center rounded-full shadow-[0_8px_18px_rgba(0,122,255,0.28)]"
-              >
-                <Mic size={24} strokeWidth={1.75} />
-              </motion.button>
-            )}
-            <button
-              type="button"
-              onClick={() => onChange(tab.id)}
-              className={cn(
-                "flex h-12 w-16 items-center justify-center text-[13px]",
-                current === tab.id ? "font-semibold text-blue" : "text-quiet",
-              )}
-            >
-              {tab.label}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <rect x="4" y="3" width="16" height="18" rx="3" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  );
+}
+
+function StatsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M4 20V4M4 20h16M8.5 16v-5M13 16V8M17.5 16v-3" />
+    </svg>
+  );
+}
+
+function BudgetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 3.5V12l6 6" />
+    </svg>
+  );
+}
+
+function MeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="8.5" r="4" />
+      <path d="M4.5 20.5a7.5 7.5 0 0115 0" />
+    </svg>
+  );
+}
+
+export function MicButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="mic" aria-label="语音记账" onClick={onClick}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+        <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
+        <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
+      </svg>
+    </button>
+  );
+}
+
+export function BottomNav({ current, onChange }: { current: TabId; onChange: (tab: TabId) => void }) {
+  return (
+    <nav className="tab glass" aria-label="主导航">
+      <button type="button" className={cn("ti", current === "home" && "on")} onClick={() => onChange("home")}>
+        <LedgerIcon />
+        账单
+      </button>
+      <button type="button" className={cn("ti", current === "stats" && "on")} onClick={() => onChange("stats")}>
+        <StatsIcon />
+        统计
+      </button>
+      <div />
+      <button type="button" className={cn("ti", current === "budget" && "on")} onClick={() => onChange("budget")}>
+        <BudgetIcon />
+        预算
+      </button>
+      <button type="button" className={cn("ti", current === "me" && "on")} onClick={() => onChange("me")}>
+        <MeIcon />
+        我的
+      </button>
+    </nav>
   );
 }
