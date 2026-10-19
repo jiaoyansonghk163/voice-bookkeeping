@@ -1,0 +1,53 @@
+const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+
+export function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return startOfDay(a).getTime() === startOfDay(b).getTime();
+}
+
+export function isSameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+export function formatYuan(amount: number): string {
+  const [int, dec] = amount.toFixed(2).split(".");
+  return `${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${dec}`;
+}
+
+export function splitYuan(amount: number): { int: string; dec: string } {
+  const formatted = formatYuan(amount);
+  const dot = formatted.lastIndexOf(".");
+  return { int: formatted.slice(0, dot), dec: formatted.slice(dot + 1) };
+}
+
+export function formatFullDate(date: Date): string {
+  return `${date.getMonth() + 1}月${date.getDate()}日 · ${WEEKDAYS[date.getDay()]}`;
+}
+
+export function formatMonth(date: Date): string {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+}
+
+export function formatClock(date: Date): string {
+  const hours = `${date.getHours()}`.padStart(2, "0");
+  const minutes = `${date.getMinutes()}`.padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+export function formatDayGroup(date: Date, now: Date): string {
+  const days = Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
+  if (days === 0) return "今天";
+  if (days === 1) return "昨天";
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+export function formatDetailStamp(date: Date, now: Date): string {
+  return `${formatDayGroup(date, now)} ${formatClock(date)}`;
+}
+
+export function roundMoney(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
