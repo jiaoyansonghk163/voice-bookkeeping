@@ -10,7 +10,7 @@ import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
 import { StoreProvider, useStore } from "@/lib/store";
-import type { ParsedExpense } from "@/lib/types";
+import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
 type Route =
   | { name: "home" }
@@ -44,8 +44,7 @@ function hrefFor(route: Route): string {
 
 function tabFor(route: Route): TabId {
   if (route.name === "stats") return "stats";
-  if (route.name === "budget") return "budget";
-  if (route.name === "me") return "me";
+  if (route.name === "me" || route.name === "budget") return "me";
   return "home";
 }
 
@@ -64,7 +63,13 @@ function Shell() {
   const [mounted, setMounted] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceSession, setVoiceSession] = useState(0);
+  const [presetCategory, setPresetCategory] = useState<CategoryId | null>(null);
+  const [toast, setToast] = useState<
+    { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
+  >(null);
+  const toastTimer = useRef<number | null>(null);
   const [now] = useState(() => new Date());
+  const [headerScrolled, setHeaderScrolled] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
@@ -91,19 +96,53 @@ function Shell() {
     scrollRef.current?.scrollTo({ top: 0 });
   }, []);
 
-  const openVoice = () => {
+  const openVoice = (category?: CategoryId) => {
+    setPresetCategory(typeof category === "string" ? category : null);
     setVoiceSession((value) => value + 1);
     setVoiceOpen(true);
   };
 
+  const showToast = (
+    next: { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] },
+  ) => {
+    setToast(next);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const deleteTransaction = (transaction: Transaction) => {
+    store.remove(transaction.id);
+    showToast({ kind: "delete", transaction });
+  };
+
+  const undoToast = () => {
+    if (!toast) return;
+    if (toast.kind === "delete") store.restore(toast.transaction);
+    else {
+      for (const transaction of toast.transactions) store.remove(transaction.id);
+    }
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast(null);
+  };
+
   const commitVoice = (expenses: ParsedExpense[], at: Date) => {
     if (expenses.length === 0) return;
-    store.addMany(expenses, at);
+    const saved = store.addMany(expenses, at);
     setVoiceOpen(false);
     go({ name: "home" });
+    showToast({ kind: "added", transactions: saved });
   };
 
   const ready = mounted && store.ready;
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const onScroll = () => setHeaderScrolled(node.scrollTop > 1);
+    onScroll();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => node.removeEventListener("scroll", onScroll);
+  }, [ready, route.name]);
   const showChrome = route.name !== "detail";
   const monthTitle = `${now.getMonth() + 1} 月账本`;
   const title =
@@ -131,6 +170,8 @@ function Shell() {
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
         onOpenAll={() => go({ name: "all" })}
+        onQuick={(category) => openVoice(category)}
+        onDelete={deleteTransaction}
       />
     );
   } else if (route.name === "all") {
@@ -140,10 +181,11 @@ function Shell() {
         now={now}
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
+        onDelete={deleteTransaction}
       />
     );
   } else if (route.name === "stats") {
-    screen = <StatsScreen transactions={store.transactions} />;
+    screen = <StatsScreen transactions={store.transactions} now={now} />;
   } else if (route.name === "budget") {
     screen = (
       <BudgetScreen
@@ -162,6 +204,7 @@ function Shell() {
         onLoadDemo={store.loadDemo}
         onClearDemo={store.clearDemo}
         onImport={store.replaceLedger}
+        onOpenBudget={() => go({ name: "budget" })}
       />
     );
   } else {
@@ -176,7 +219,7 @@ function Shell() {
         <div className="boot">语音记账</div>
       ) : (
         <>
-          <header className="top glass">
+          <header className={headerScrolled ? "top scrolled" : "top"}>
             <div className="hrow">
               <div>
                 <h1>
@@ -206,10 +249,24 @@ function Shell() {
           </main>
 
           {showChrome && <div className="fade" />}
-          {showChrome && <MicButton onClick={openVoice} />}
+          {showChrome && <MicButton onClick={() => openVoice()} />}
           {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
 
-          <VoiceSheet key={voiceSession} open={voiceOpen} onClose={() => setVoiceOpen(false)} onCommit={commitVoice} />
+          <VoiceSheet
+            key={voiceSession}
+            open={voiceOpen}
+            presetCategory={presetCategory}
+            onClose={() => setVoiceOpen(false)}
+            onCommit={commitVoice}
+          />
+          {toast ? (
+            <div className="toast" role="status">
+              <span>{toast.kind === "delete" ? `已删除 ${toast.transaction.title}` : `已记入 ${toast.transactions.length} 笔`}</span>
+              <button type="button" onClick={undoToast}>
+                撤销
+              </button>
+            </div>
+          ) : null}
         </>
       )}
     </div>

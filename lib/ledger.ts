@@ -1,5 +1,24 @@
+import { CATEGORY_ORDER } from "./categories";
 import { isSameDay, isSameMonth, roundMoney } from "./format";
 import type { CategoryId, Transaction } from "./types";
+
+const QUICK_FALLBACK: CategoryId[] = ["food", "transit", "shopping", "fun"];
+
+/** Top 大类 by use, padded with 餐饮 / 交通 / 购物 / 娱乐. At most four. */
+export function frequentCategories(items: Transaction[]): CategoryId[] {
+  const counts = new Map<CategoryId, number>();
+  for (const item of items) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+  const ranked = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || CATEGORY_ORDER.indexOf(a[0]) - CATEGORY_ORDER.indexOf(b[0]))
+    .map(([id]) => id);
+  const picked: CategoryId[] = [];
+  for (const id of [...ranked, ...QUICK_FALLBACK]) {
+    if (picked.includes(id)) continue;
+    picked.push(id);
+    if (picked.length === 4) break;
+  }
+  return picked;
+}
 
 export function sumAmounts(items: Transaction[]): number {
   return roundMoney(items.reduce((total, item) => total + item.amount, 0));

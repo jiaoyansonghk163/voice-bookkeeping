@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). On a phone, add it to the home screen: the app is a standalone PWA (`viewport-fit=cover`, dark `theme_color`).
+Open [http://localhost:3000](http://localhost:3000). On a phone, add it to the home screen: the app is a standalone PWA (`viewport-fit=cover`, light `theme_color`).
 
 ```bash
 npm test        # Chinese amount parser
@@ -30,17 +30,17 @@ The production build is a fully static export. There is no Node server to run.
 
 `next.config.ts` sets `output: 'export'`. The build then writes `out/sw.js`, which precaches that export. Paths are root-absolute (`/manifest.webmanifest`, `/icon-192.png`, `/apple-touch-icon.png`, `/sw.js`), which matches a site served from the domain root.
 
-`out/_redirects` sends unknown paths such as a voice entry's `/tx/<id>` back to `index.html` with status 200. Pages serves real files first, so `/_next`, the manifest, the icons, and the service worker are not rewritten. Known screens (`/`, `/stats`, `/budget`, `/me`, `/all`, `/tx/sample-1` … `sample-5`) are also real HTML files.
+`out/_redirects` sends unknown paths such as a voice entry's `/tx/<id>` back to `index.html` with status 200. Pages serves real files first, so `/_next`, the manifest, the icons, and the service worker are not rewritten. Known screens (`/`, `/stats`, `/budget`, `/me`, `/all`, `/tx/sample-1` … `sample-6`) are also real HTML files.
 
 Chinese text uses the system font stack (PingFang SC, Noto Sans CJK SC). On Linux, install a CJK face if glyphs are missing, for example `fonts-noto-cjk`.
 
 ## Screens
 
-- **账单** — this month, today, budget left, a 7-day sparkline, and recent rows, all from bills stored on the device. An empty ledger shows zeros.
-- **语音记账** — the same listening sheet, then confirm. If recognition is missing or offline, the sheet asks you to type the sentence instead.
-- **统计** — category split of the stored bills
-- **预算** — a monthly budget you set on this device
-- **我的** — export and import `语音记账.json`, and the optional **载入示例数据** toggle
+- **账单** — today and this month, frequent categories, and bills grouped by day. An empty ledger shows zeros.
+- **语音记账** — the listening sheet, then a confirm step. Split rows stay in memory until **确认记入**. If recognition is missing or offline, the sheet asks you to type the sentence instead.
+- **统计** — the 7-day chart and the category split
+- **我的** — **预算**, export and import `语音记账.json`, and the optional **载入示例数据** toggle
+- **预算** — the monthly budget, opened from 我的 (`/budget`)
 - **明细** — one transaction, including the original phrase
 
 Direct links: `/`, `/stats`, `/budget`, `/me`, `/tx/sample-1` (the sample id exists only after you load 示例数据).
@@ -49,7 +49,7 @@ Direct links: `/`, `/stats`, `/budget`, `/me`, `/tx/sample-1` (the sample id exi
 
 Bills and the monthly budget are stored in IndexedDB (`voice-ledger`). If IndexedDB is blocked, the same record is kept in `localStorage` (`voice-ledger.v1`). Nothing is sent to a backend. A reload keeps the rows. **导出账单** downloads a JSON file; **导入账单** replaces the on-device ledger with that file. The app does not load analytics or any other third-party script.
 
-After the first visit to the deployed site, `sw.js` has precached the static files. Opening the app and saving a typed bill then works with no network. Installing it from the browser’s “Add to Home Screen” uses the manifest (`display: standalone`, dark `theme_color`).
+After the first visit to the deployed site, `sw.js` has precached the static files. Opening the app and saving a typed bill then works with no network. Installing it from the browser’s “Add to Home Screen” uses the manifest (`display: standalone`, light `theme_color`).
 
 The worker caches the extensionless URLs Cloudflare Pages serves (`/`, `/stats`, `/tx/sample-1`, and so on), not the `.html` files. Pages redirects those `.html` paths with 308, and Safari refuses a service-worker response whose `redirected` flag is set. A new cache name drops the broken cache on the next visit.
 
@@ -66,4 +66,4 @@ Firefox does not ship recognition enabled. There the sheet is the text field fro
 
 ## Design
 
-Dark, minimal, portrait. The page background is `#0b1224` with soft blue, violet, and cyan glows. Frosted glass (`blur(16px)`, `saturate(1.4)`) is only on the header, the KPI cards, the tab bar, and the voice sheets. The chart and the transaction list sit on an opaque navy panel. The accent runs from `#22d3ee` to `#3b82f6`. Sheets, the backdrop, and the cards move in 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.
+Light, portrait card dashboard. The page is `#f8f9fc` with a very faint indigo wash at the top. Home shows 今日支出 and 本月支出, a row of frequent categories, then 最近账单. Cards are white, 12px radius, with a soft shadow. List amounts are red; a row can swipe left to delete and undo. The 7-day chart and 分类占比 sit on 统计. The confirm sheet is white, 16px radius, and leaves the title and today card visible. Motion is 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.

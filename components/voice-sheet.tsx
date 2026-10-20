@@ -6,8 +6,8 @@ import { Glyph, categoryChipStyle, categoryGlyph, categoryName } from "@/compone
 import { captureMode, speechRecognitionSupported, startListening, type ListenSession } from "@/lib/asr";
 import { CATEGORY_ORDER, SUBCATEGORIES, categoryDetail, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { formatDetailStamp, formatYuan } from "@/lib/format";
-import { parseTranscript } from "@/lib/parse-transcript";
+import { commitOrDrop, stageUtterance, sumEditable, type EditableDraft } from "@/lib/drafts";
+import { formatYuan } from "@/lib/format";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -30,41 +30,6 @@ function CloseIcon() {
   );
 }
 
-function Chevron() {
-  return (
-    <svg className="ch" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-function readAmount(text: string): number | null {
-  const value = Number(text.replace(/[¥￥,\s]/g, ""));
-  if (!Number.isFinite(value) || value <= 0 || value > 99_999) return null;
-  return Math.round(value * 100) / 100;
-}
-
-function amountText(amount: number): string {
-  return String(amount);
-}
-
-function toExpenses(entries: DraftEntry[]): ParsedExpense[] | null {
-  const expenses: ParsedExpense[] = [];
-  for (const entry of entries) {
-    const amount = readAmount(entry.amount);
-    const title = entry.title.trim();
-    if (amount == null || !title) return null;
-    expenses.push({
-      amount,
-      category: entry.category,
-      subcategory: entry.subcategory,
-      title,
-      transcript: entry.transcript,
-    });
-  }
-  return expenses;
-}
-
 function LiveTranscript({ text }: { text: string }) {
   return (
     <div className="transcript">
@@ -78,10 +43,12 @@ export function VoiceSheet({
   open,
   onClose,
   onCommit,
+  presetCategory = null,
 }: {
   open: boolean;
   onClose: () => void;
   onCommit: (expenses: ParsedExpense[], at: Date) => void;
+  presetCategory?: CategoryId | null;
 }) {
   const reduceMotion = useReducedMotion() === true;
   const session = useRef(0);
@@ -106,6 +73,7 @@ export function VoiceSheet({
   };
 
   const requestClose = () => {
+    commitOrDrop("close", entries);
     session.current += 1;
     stopMic();
     onCloseRef.current();
@@ -120,20 +88,16 @@ export function VoiceSheet({
   };
 
   const goReview = (text: string) => {
-    const parsed = parseTranscript(text);
-    if (!parsed.ok) {
+    const staged = stageUtterance(text, new Date(), presetCategory);
+    if (!staged) {
       useTyping(text, "没有听清金额，补上用途和金额");
       return;
     }
     stopMic();
     setEntries(
-      parsed.entries.map((entry) => ({
+      staged.entries.map((entry) => ({
         key: crypto.randomUUID(),
-        amount: amountText(entry.amount),
-        category: entry.category,
-        subcategory: entry.subcategory,
-        title: entry.title,
-        transcript: parsed.transcript,
+        ...entry,
       })),
     );
     setRecordedAt(new Date());
@@ -176,6 +140,12 @@ export function VoiceSheet({
     setEntries([]);
     setPicking(null);
     setHint("说出用途和金额，比如「打车二十五」");
+
+    if (presetCategory) {
+      setCapture("type");
+      setHint("输入一句话，比如「午饭三十八」");
+      return;
+    }
 
     const offline = typeof navigator !== "undefined" && navigator.onLine === false;
     if (offline || !speechRecognitionSupported()) {
@@ -226,7 +196,7 @@ export function VoiceSheet({
       session.current += 1;
       stopMic();
     };
-  }, [open, run]);
+  }, [open, run, presetCategory]);
 
   useEffect(() => {
     if (!open) return;
@@ -236,8 +206,7 @@ export function VoiceSheet({
   }, [open, transcript]);
 
   const motionProps = reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: EASE };
-  const ready = toExpenses(entries);
-  const many = entries.length > 1;
+  const ready = commitOrDrop("confirm", entries);
 
   return (
     <AnimatePresence>
@@ -258,7 +227,7 @@ export function VoiceSheet({
           className="sheet glass"
           role="dialog"
           aria-modal="true"
-          aria-label={phase === "review" ? (many ? "确认这几笔" : "确认这笔账") : capture === "type" ? "手动输入" : "正在聆听"}
+          aria-label={phase === "review" ? "确认这几笔" : capture === "type" ? "手动输入" : "正在聆听"}
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
@@ -267,45 +236,28 @@ export function VoiceSheet({
         >
           <div className="grab" />
           {phase === "review" && entries.length > 0 ? (
-            entries.length === 1 ? (
-              <ConfirmOne
-                entry={entries[0]}
-                when={formatDetailStamp(recordedAt, recordedAt)}
-                picking={picking === entries[0].key}
-                onPick={() => setPicking((value) => (value === entries[0].key ? null : entries[0].key))}
-                onCategory={(category) => {
-                  if (category === entries[0].category) return;
-                  updateEntry(entries[0].key, { category, subcategory: defaultPick(category, recordedAt) });
-                }}
-                onSubcategory={(subcategory) => {
-                  updateEntry(entries[0].key, { subcategory });
-                  setPicking(null);
-                }}
-                onClose={requestClose}
-                onAgain={() => setRun((value) => value + 1)}
-                onCommit={() => {
-                  if (ready) onCommit(ready, recordedAt);
-                }}
-              />
-            ) : (
-              <ConfirmMany
-                entries={entries}
-                picking={picking}
-                onPick={(key) => setPicking((value) => (value === key ? null : key))}
-                onChange={updateEntry}
-                onRemove={(key) => {
-                  setEntries((current) => current.filter((entry) => entry.key !== key));
-                  setPicking((value) => (value === key ? null : value));
-                }}
-                recordedAt={recordedAt}
-                onClose={requestClose}
-                onAgain={() => setRun((value) => value + 1)}
-                canSave={ready !== null}
-                onCommit={() => {
-                  if (ready) onCommit(ready, recordedAt);
-                }}
-              />
-            )
+            <ConfirmEntries
+              entries={entries}
+              picking={picking}
+              onPick={(key) => setPicking((value) => (value === key ? null : key))}
+              onChange={updateEntry}
+              onRemove={(key) => {
+                setEntries((current) => current.filter((entry) => entry.key !== key));
+                setPicking((value) => (value === key ? null : value));
+              }}
+              recordedAt={recordedAt}
+              onClose={requestClose}
+              onAgain={() => {
+                commitOrDrop("retry", entries);
+                setEntries([]);
+                setRun((value) => value + 1);
+              }}
+              canSave={ready !== null}
+              onCommit={() => {
+                const expenses = commitOrDrop("confirm", entries);
+                if (expenses) onCommit(expenses, recordedAt);
+              }}
+            />
           ) : phase === "review" ? (
             <>
               <div className="shead">
@@ -315,7 +267,14 @@ export function VoiceSheet({
                 </button>
               </div>
               <p className="hint">没有要记的账。</p>
-              <button type="button" className="again" onClick={() => setRun((value) => value + 1)}>
+              <button
+                type="button"
+                className="again"
+                onClick={() => {
+                  commitOrDrop("retry", entries);
+                  setRun((value) => value + 1);
+                }}
+              >
                 重新说一遍
               </button>
             </>
@@ -345,6 +304,14 @@ export function VoiceSheet({
                   }}
                 />
               )}
+              {presetCategory ? (
+                <div className="preset">
+                  <span className="chip" style={categoryChipStyle(presetCategory)}>
+                    <Glyph name={categoryGlyph(presetCategory)} size={16} strokeWidth={2} />
+                    {categoryName(presetCategory)}
+                  </span>
+                </div>
+              ) : null}
               <div className="hint">{hint}</div>
               {capture === "speech" ? (
                 <div className="wave" aria-hidden="true">
@@ -383,111 +350,30 @@ function CategoryPicker({
   onCategory: (category: CategoryId) => void;
   onSubcategory: (subcategory: string) => void;
 }) {
+  const subs = SUBCATEGORIES[category];
   return (
-    <div className="picker">
+    <div className="picker" role="group" aria-label="分类">
+      <span className="picker-lab">大类</span>
       {CATEGORY_ORDER.map((id) => (
         <button key={id} type="button" className={cn(id === category && "on")} onClick={() => onCategory(id)}>
           {categoryName(id)}
         </button>
       ))}
-      {SUBCATEGORIES[category].map((name) => (
-        <button key={name} type="button" className={cn(name === subcategory && "on")} onClick={() => onSubcategory(name)}>
-          {name}
-        </button>
-      ))}
+      {subs.length > 0 ? (
+        <>
+          <span className="picker-lab">小类</span>
+          {subs.map((name) => (
+            <button key={name} type="button" className={cn(name === subcategory && "on")} onClick={() => onSubcategory(name)}>
+              {name}
+            </button>
+          ))}
+        </>
+      ) : null}
     </div>
   );
 }
 
-function ConfirmOne({
-  entry,
-  when,
-  picking,
-  onPick,
-  onCategory,
-  onSubcategory,
-  onClose,
-  onAgain,
-  onCommit,
-}: {
-  entry: DraftEntry;
-  when: string;
-  picking: boolean;
-  onPick: () => void;
-  onCategory: (category: CategoryId) => void;
-  onSubcategory: (subcategory: string) => void;
-  onClose: () => void;
-  onAgain: () => void;
-  onCommit: () => void;
-}) {
-  const amount = readAmount(entry.amount);
-  const chip = categoryChipStyle(entry.category);
-
-  return (
-    <>
-      <div className="shead">
-        <h2>确认这笔账</h2>
-        <button type="button" className="x" aria-label="关闭" onClick={onClose}>
-          <CloseIcon />
-        </button>
-      </div>
-      <div className="heard">听到：「{entry.transcript}」</div>
-      <div className="hero rise">
-        <div className="lab">支出金额</div>
-        <div className="sum num">
-          <small>¥</small>
-          {amount == null ? "—" : formatYuan(amount)}
-        </div>
-      </div>
-      <div className="card panel rise" style={{ animationDelay: ".05s" }}>
-        <button type="button" className="f" onClick={onPick}>
-          <span className="k">分类</span>
-          <span className="v">
-            <span className="chip" style={chip}>
-              <Glyph name={categoryGlyph(entry.category)} size={16} strokeWidth={2} />
-              {categoryName(entry.category)}
-            </span>
-            <Chevron />
-          </span>
-        </button>
-        {picking && (
-          <CategoryPicker
-            category={entry.category}
-            subcategory={entry.subcategory}
-            onCategory={onCategory}
-            onSubcategory={onSubcategory}
-          />
-        )}
-        <div className="f">
-          <span className="k">时间</span>
-          <span className="v">
-            {when}
-            <Chevron />
-          </span>
-        </div>
-        <div className="f">
-          <span className="k">备注</span>
-          <span className="v">
-            {entry.title}
-            <Chevron />
-          </span>
-        </div>
-      </div>
-      <button type="button" className="go" onClick={onCommit} disabled={amount == null}>
-        确认记账
-      </button>
-      <button type="button" className="again" onClick={onAgain}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <rect x="9" y="3" width="6" height="11" rx="3" />
-          <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
-        </svg>
-        重新说一遍
-      </button>
-    </>
-  );
-}
-
-function ConfirmMany({
+function ConfirmEntries({
   entries,
   picking,
   onPick,
@@ -510,7 +396,8 @@ function ConfirmMany({
   canSave: boolean;
   onCommit: () => void;
 }) {
-  const total = entries.reduce((sum, entry) => sum + (readAmount(entry.amount) ?? 0), 0);
+  const total = sumEditable(entries);
+  const count = entries.length;
 
   return (
     <>
@@ -520,78 +407,82 @@ function ConfirmMany({
           <CloseIcon />
         </button>
       </div>
-      <div className="heard">听到：「{entries[0]?.transcript}」</div>
-      <div className="batch-total">
-        <span className="lab">合计 {entries.length} 笔</span>
-        <span className="sum num">
-          <small>¥</small>
-          {formatYuan(total)}
-        </span>
-      </div>
-      <div className="erows">
-        {entries.map((entry) => {
-          const tone = categoryChipStyle(entry.category);
-          return (
-            <div className="erow" key={entry.key}>
-              <div className="erow-main">
-                <span className="ic" style={{ background: tone.background, color: tone.color }}>
-                  <Glyph name={categoryGlyph(entry.category)} size={18} />
-                </span>
-                <span className="meta">
-                  <input
-                    className="etitle"
-                    aria-label={`${entry.title || "备注"}的备注`}
-                    value={entry.title}
-                    onChange={(event) => onChange(entry.key, { title: event.target.value })}
-                  />
-                  <button type="button" className="esub" onClick={() => onPick(entry.key)}>
-                    {categoryDetail(entry.category, entry.subcategory)}
+      <div className="sheet-body">
+        <div className="heard">听到：「{entries[0]?.transcript}」</div>
+        <div className="erows">
+          {entries.map((entry) => {
+            const tone = categoryChipStyle(entry.category);
+            return (
+              <div className="erow" key={entry.key}>
+                <div className="erow-main">
+                  <span className="ic" style={{ background: tone.background, color: tone.color }}>
+                    <Glyph name={categoryGlyph(entry.category)} size={18} />
+                  </span>
+                  <span className="meta">
+                    <input
+                      className="etitle"
+                      aria-label={`${entry.title || "备注"}的备注`}
+                      value={entry.title}
+                      onChange={(event) => onChange(entry.key, { title: event.target.value })}
+                    />
+                    <button type="button" className="esub" onClick={() => onPick(entry.key)}>
+                      {categoryDetail(entry.category, entry.subcategory)}
+                    </button>
+                  </span>
+                  <label className="eamt num">
+                    <span>¥</span>
+                    <input
+                      inputMode="decimal"
+                      aria-label={`${entry.title || "这笔"}的金额`}
+                      value={entry.amount}
+                      style={{ width: `calc(${Math.max(entry.amount.length, 1)}ch + 2px)` }}
+                      onChange={(event) => onChange(entry.key, { amount: event.target.value })}
+                    />
+                  </label>
+                  <button type="button" className="edel" aria-label={`删除${entry.title || "这笔"}`} onClick={() => onRemove(entry.key)}>
+                    ×
                   </button>
-                </span>
-                <label className="eamt num">
-                  <span>¥</span>
-                  <input
-                    inputMode="decimal"
-                    aria-label={`${entry.title || "这笔"}的金额`}
-                    value={entry.amount}
-                    style={{ width: `calc(${Math.max(entry.amount.length, 1)}ch + 2px)` }}
-                    onChange={(event) => onChange(entry.key, { amount: event.target.value })}
+                </div>
+                {picking === entry.key && (
+                  <CategoryPicker
+                    category={entry.category}
+                    subcategory={entry.subcategory}
+                    onCategory={(category) =>
+                      onChange(entry.key, {
+                        category,
+                        subcategory: category === entry.category ? entry.subcategory : defaultPick(category, recordedAt),
+                      })
+                    }
+                    onSubcategory={(subcategory) => {
+                      onChange(entry.key, { subcategory });
+                      onPick(entry.key);
+                    }}
                   />
-                </label>
-                <button type="button" className="edel" aria-label={`删除${entry.title || "这笔"}`} onClick={() => onRemove(entry.key)}>
-                  ×
-                </button>
+                )}
               </div>
-              {picking === entry.key && (
-                <CategoryPicker
-                  category={entry.category}
-                  subcategory={entry.subcategory}
-                  onCategory={(category) =>
-                    onChange(entry.key, {
-                      category,
-                      subcategory: category === entry.category ? entry.subcategory : defaultPick(category, recordedAt),
-                    })
-                  }
-                  onSubcategory={(subcategory) => {
-                    onChange(entry.key, { subcategory });
-                    onPick(entry.key);
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-      <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
-        确认记账
-      </button>
-      <button type="button" className="again" onClick={onAgain}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <rect x="9" y="3" width="6" height="11" rx="3" />
-          <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
-        </svg>
-        重新说一遍
-      </button>
+      <div className="sheet-foot">
+        <div className="batch-total">
+          <span className="lab">合计</span>
+          <span className="sum num">
+            <small>¥</small>
+            {formatYuan(total)}
+          </span>
+        </div>
+        <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
+          确认记入 {count} 笔
+        </button>
+        <button type="button" className="again" onClick={onAgain}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
+          </svg>
+          重新说一遍
+        </button>
+      </div>
     </>
   );
 }

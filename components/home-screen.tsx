@@ -1,12 +1,11 @@
-import { Sparkline } from "@/components/sparkline";
+import type { ReactNode } from "react";
+import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
 import { TxnRow } from "@/components/txn-row";
-import { formatYuanTrim, weekdayShort } from "@/lib/format";
+import { CATEGORIES } from "@/lib/categories";
+import { formatDayHeading, formatYuanTrim } from "@/lib/format";
+import { frequentCategories, groupByDay } from "@/lib/ledger";
 import { presentKpis } from "@/lib/metrics";
-import type { Transaction } from "@/lib/types";
-
-function sorted(transactions: Transaction[]) {
-  return [...transactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
+import type { CategoryId, Transaction } from "@/lib/types";
 
 function Delta({ delta }: { delta: number | null }) {
   if (delta == null) return <div className="d">较上月 —</div>;
@@ -22,6 +21,55 @@ function Delta({ delta }: { delta: number | null }) {
   );
 }
 
+function BillGroups({
+  transactions,
+  now,
+  highlightIds,
+  onOpen,
+  onDelete,
+  empty,
+}: {
+  transactions: Transaction[];
+  now: Date;
+  highlightIds: string[];
+  onOpen: (id: string) => void;
+  onDelete?: (transaction: Transaction) => void;
+  empty: string;
+}) {
+  const groups = groupByDay(transactions, now, formatDayHeading);
+  if (groups.length === 0) return <p className="empty">{empty}</p>;
+  return (
+    <div className="list">
+      {groups.map((group) => (
+        <section className="day" key={group.label}>
+          <div className="dayhead">
+            <span>{group.label}</span>
+            <b className="num">¥{formatYuanTrim(group.total)}</b>
+          </div>
+          {group.items.map((transaction) => (
+            <TxnRow
+              key={transaction.id}
+              transaction={transaction}
+              now={now}
+              fresh={highlightIds.includes(transaction.id)}
+              onOpen={onOpen}
+              onDelete={onDelete}
+            />
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CardIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
 export function HomeScreen({
   transactions,
   now,
@@ -29,6 +77,8 @@ export function HomeScreen({
   highlightIds,
   onOpen,
   onOpenAll,
+  onQuick,
+  onDelete,
 }: {
   transactions: Transaction[];
   now: Date;
@@ -36,80 +86,75 @@ export function HomeScreen({
   highlightIds: string[];
   onOpen: (id: string) => void;
   onOpenAll: () => void;
+  onQuick: (category: CategoryId) => void;
+  onDelete: (transaction: Transaction) => void;
 }) {
   const kpis = presentKpis(transactions, now, monthlyBudget);
-  const rows = sorted(transactions);
+  const quicks = frequentCategories(transactions);
 
   return (
     <>
-      <section className="kpis rise">
-        <article className="kpi glass main">
-          <div className="l">本月支出</div>
-          <div className="v num" data-kpi="month">
-            ¥{formatYuanTrim(kpis.monthSpend)}
-          </div>
-          <Delta delta={kpis.delta} />
-        </article>
-        <article className="kpi glass">
-          <div className="l">今日</div>
-          <div className="v num" data-kpi="today">
-            ¥{formatYuanTrim(kpis.todaySpend)}
-          </div>
-          <div className="d">{kpis.todayCount} 笔</div>
-        </article>
-        <article className="kpi glass">
-          <div className="l">预算剩余</div>
-          <div className="v num" data-kpi="budget">
-            {kpis.budgetLeft == null ? "未设置" : `¥${formatYuanTrim(kpis.budgetLeft)}`}
-          </div>
-          <div className="bar">
-            <i style={{ width: `${Math.round((kpis.bar ?? 0) * 100)}%` }} />
-          </div>
-        </article>
-      </section>
-
-      <section className="panel block rise" style={{ animationDelay: ".04s" }}>
-        <div className="ph">
-          <h2>近 7 天</h2>
-          <span>
-            日均{" "}
-            <b className="num" style={{ color: "var(--text)", fontWeight: 600 }}>
-              ¥{formatYuanTrim(kpis.dailyAvg)}
-            </b>
+      <section className="cards rise">
+        <article className="card-stat" data-card="today">
+          <span className="tile purple" aria-hidden="true">
+            <CardIcon>
+              <rect x="4" y="5" width="16" height="15" rx="3" />
+              <path d="M8 3.5v3M16 3.5v3M4 10h16" />
+            </CardIcon>
           </span>
-        </div>
-        <Sparkline values={kpis.days.map((day) => day.total)} />
-        <div className="days">
-          {kpis.days.map((day, index) => (
-            <span key={day.date.toISOString()} className={index === kpis.days.length - 1 ? "on" : undefined}>
-              {index === kpis.days.length - 1 ? "今天" : weekdayShort(day.date)}
-            </span>
-          ))}
-        </div>
+          <div className="body">
+            <div className="l">今日支出</div>
+            <div className="v spend num" data-kpi="today">
+              ¥{formatYuanTrim(kpis.todaySpend)}
+            </div>
+            <div className="d">{kpis.todayCount} 笔</div>
+          </div>
+        </article>
+        <article className="card-stat">
+          <span className="tile purple" aria-hidden="true">
+            <CardIcon>
+              <path d="M4 19V10M12 19V5M20 19v-7" />
+            </CardIcon>
+          </span>
+          <div className="body">
+            <div className="l">本月支出</div>
+            <div className="v spend num" data-kpi="month">
+              ¥{formatYuanTrim(kpis.monthSpend)}
+            </div>
+            <Delta delta={kpis.delta} />
+          </div>
+        </article>
       </section>
 
-      <section className="panel block rise" style={{ animationDelay: ".08s" }}>
+      <section className="quicks rise" aria-label="常用分类">
+        {quicks.map((id) => {
+          const tone = toneFor(CATEGORIES[id].label, id);
+          return (
+            <button key={id} type="button" className="quick" onClick={() => onQuick(id)}>
+              <span className="tile" style={{ background: tone.bg, color: tone.fg }}>
+                <Glyph name={categoryGlyph(id)} />
+              </span>
+              {CATEGORIES[id].label}
+            </button>
+          );
+        })}
+      </section>
+
+      <section className="panel block rise" style={{ animationDelay: ".06s" }}>
         <div className="ph">
           <h2>最近账单</h2>
           <button type="button" className="link" onClick={onOpenAll}>
             全部
           </button>
         </div>
-        <div className="list">
-          {rows.length === 0 ? (
-            <p className="empty">还没有账单。点下方麦克风记一笔。</p>
-          ) : (
-            rows.map((transaction) => (
-              <TxnRow
-                key={transaction.id}
-                transaction={transaction}
-                now={now}
-                fresh={highlightIds.includes(transaction.id)}
-                onOpen={onOpen}
-              />
-            ))
-          )}
-        </div>
+        <BillGroups
+          transactions={transactions}
+          now={now}
+          highlightIds={highlightIds}
+          onOpen={onOpen}
+          onDelete={onDelete}
+          empty="还没有账单。点下方麦克风记一笔。"
+        />
       </section>
     </>
   );
@@ -120,35 +165,28 @@ export function AllScreen({
   now,
   highlightIds,
   onOpen,
+  onDelete,
 }: {
   transactions: Transaction[];
   now: Date;
   highlightIds: string[];
   onOpen: (id: string) => void;
+  onDelete: (transaction: Transaction) => void;
 }) {
-  const rows = sorted(transactions);
-
   return (
     <section className="panel block rise">
       <div className="ph">
         <h2>最近账单</h2>
-        <span>{rows.length} 笔</span>
+        <span className="num">{transactions.length} 笔</span>
       </div>
-      <div className="list">
-        {rows.length === 0 ? (
-          <p className="empty">还没有账单。</p>
-        ) : (
-          rows.map((transaction) => (
-            <TxnRow
-              key={transaction.id}
-              transaction={transaction}
-              now={now}
-                fresh={highlightIds.includes(transaction.id)}
-              onOpen={onOpen}
-            />
-          ))
-        )}
-      </div>
+      <BillGroups
+        transactions={transactions}
+        now={now}
+        highlightIds={highlightIds}
+        onOpen={onOpen}
+        onDelete={onDelete}
+        empty="还没有账单。"
+      />
     </section>
   );
 }

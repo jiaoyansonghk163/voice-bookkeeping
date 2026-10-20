@@ -9,13 +9,13 @@ export interface Tone {
   glyph: GlyphName;
 }
 
-const FOOD: Tone = { bg: "rgba(251,146,60,.14)", fg: "#fdba74", glyph: "bowl" };
-const TRANSIT: Tone = { bg: "rgba(59,130,246,.16)", fg: "#93c5fd", glyph: "train" };
-const DAILY: Tone = { bg: "rgba(52,211,153,.14)", fg: "#6ee7b7", glyph: "cart" };
-const FUN: Tone = { bg: "rgba(244,114,182,.14)", fg: "#f9a8d4", glyph: "ticket" };
-const HOME: Tone = { bg: "rgba(251,191,36,.14)", fg: "#fcd34d", glyph: "home" };
-const HEALTH: Tone = { bg: "rgba(45,212,191,.14)", fg: "#5eead4", glyph: "health" };
-const OTHER: Tone = { bg: "rgba(148,163,184,.16)", fg: "#cbd5e1", glyph: "other" };
+const FOOD: Tone = { bg: "#fff1e6", fg: "#f97316", glyph: "bowl" };
+const TRANSIT: Tone = { bg: "#e8f1ff", fg: "#3b82f6", glyph: "train" };
+const DAILY: Tone = { bg: "#e7f8ef", fg: "#10b981", glyph: "cart" };
+const FUN: Tone = { bg: "#fde8f1", fg: "#ec4899", glyph: "ticket" };
+const HOME: Tone = { bg: "#fff6e0", fg: "#f59e0b", glyph: "home" };
+const HEALTH: Tone = { bg: "#e6faf6", fg: "#14b8a6", glyph: "health" };
+const OTHER: Tone = { bg: "#f1f5f9", fg: "#64748b", glyph: "other" };
 
 const BY_CATEGORY: Record<CategoryId, Tone> = {
   food: FOOD,
@@ -31,7 +31,7 @@ export function toneFor(_title: string, category: CategoryId): Tone {
   return BY_CATEGORY[category];
 }
 
-export function Glyph({ name, size = 20, strokeWidth = 1.8 }: { name: GlyphName; size?: number; strokeWidth?: number }) {
+export function Glyph({ name, size = 24, strokeWidth = 2 }: { name: GlyphName; size?: number; strokeWidth?: number }) {
   const props = {
     width: size,
     height: size,
