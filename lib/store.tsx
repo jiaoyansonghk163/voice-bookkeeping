@@ -12,6 +12,8 @@ interface StoreValue {
   monthlyBudget: number | null;
   highlightIds: string[];
   addMany: (expenses: ParsedExpense[], at?: Date) => Transaction[];
+  remove: (id: string) => void;
+  restore: (transaction: Transaction) => void;
   loadDemo: () => void;
   clearDemo: () => void;
   setMonthlyBudget: (amount: number | null) => void;
@@ -62,6 +64,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return transactions;
   }, []);
 
+  const remove = useCallback((id: string) => {
+    setState((current) =>
+      current ? { ...current, transactions: current.transactions.filter((item) => item.id !== id) } : current,
+    );
+  }, []);
+
+  const restore = useCallback((transaction: Transaction) => {
+    setState((current) => {
+      if (!current || current.transactions.some((item) => item.id === transaction.id)) return current;
+      return { ...current, transactions: [transaction, ...current.transactions] };
+    });
+  }, []);
+
   const loadDemo = useCallback(() => {
     const samples = createSampleTransactions(new Date());
     setState((current) => {
@@ -94,12 +109,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       monthlyBudget: state?.monthlyBudget ?? null,
       highlightIds,
       addMany,
+      remove,
+      restore,
       loadDemo,
       clearDemo,
       setMonthlyBudget,
       replaceLedger,
     }),
-    [state, highlightIds, addMany, loadDemo, clearDemo, setMonthlyBudget, replaceLedger],
+    [state, highlightIds, addMany, remove, restore, loadDemo, clearDemo, setMonthlyBudget, replaceLedger],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

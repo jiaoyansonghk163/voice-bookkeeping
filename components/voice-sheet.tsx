@@ -78,10 +78,12 @@ export function VoiceSheet({
   open,
   onClose,
   onCommit,
+  presetCategory = null,
 }: {
   open: boolean;
   onClose: () => void;
   onCommit: (expenses: ParsedExpense[], at: Date) => void;
+  presetCategory?: CategoryId | null;
 }) {
   const reduceMotion = useReducedMotion() === true;
   const session = useRef(0);
@@ -130,8 +132,8 @@ export function VoiceSheet({
       parsed.entries.map((entry) => ({
         key: crypto.randomUUID(),
         amount: amountText(entry.amount),
-        category: entry.category,
-        subcategory: entry.subcategory,
+        category: presetCategory ?? entry.category,
+        subcategory: presetCategory ? defaultPick(presetCategory, new Date()) : entry.subcategory,
         title: entry.title,
         transcript: parsed.transcript,
       })),
@@ -176,6 +178,12 @@ export function VoiceSheet({
     setEntries([]);
     setPicking(null);
     setHint("说出用途和金额，比如「打车二十五」");
+
+    if (presetCategory) {
+      setCapture("type");
+      setHint("输入一句话，比如「午饭三十八」");
+      return;
+    }
 
     const offline = typeof navigator !== "undefined" && navigator.onLine === false;
     if (offline || !speechRecognitionSupported()) {
@@ -226,7 +234,7 @@ export function VoiceSheet({
       session.current += 1;
       stopMic();
     };
-  }, [open, run]);
+  }, [open, run, presetCategory]);
 
   useEffect(() => {
     if (!open) return;
@@ -345,6 +353,14 @@ export function VoiceSheet({
                   }}
                 />
               )}
+              {presetCategory ? (
+                <div className="preset">
+                  <span className="chip" style={categoryChipStyle(presetCategory)}>
+                    <Glyph name={categoryGlyph(presetCategory)} size={16} strokeWidth={2} />
+                    {categoryName(presetCategory)}
+                  </span>
+                </div>
+              ) : null}
               <div className="hint">{hint}</div>
               {capture === "speech" ? (
                 <div className="wave" aria-hidden="true">

@@ -66,4 +66,4 @@ Firefox does not ship recognition enabled. There the sheet is the text field fro
 
 ## Design
 
-Light, portrait card dashboard. The page is near-white (`#f7f8fa`) with a faint teal wash at the top. Summary figures sit on white cards (20px radius, soft shadow, no border) in a two-column grid. Spend amounts are purple and remaining budget is green. The 7-day chart and the bill list are full-width white cards, and each row uses a pale tinted icon tile. The confirm sheet is an opaque white card over a light dim. Motion is 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.
+Light, portrait card dashboard. The page is `#f8f9fc` with a very faint indigo wash at the top. Home shows 今日支出 and 本月支出, a row of frequent categories, then 最近账单. Cards are white, 12px radius, with a soft shadow. List amounts are red; a row can swipe left to delete and undo. The 7-day chart and 分类占比 sit on 统计. The confirm sheet is white, 16px radius, and leaves the title and today card visible. Motion is 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.

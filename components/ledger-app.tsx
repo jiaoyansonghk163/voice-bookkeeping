@@ -10,7 +10,7 @@ import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
 import { StoreProvider, useStore } from "@/lib/store";
-import type { ParsedExpense } from "@/lib/types";
+import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
 type Route =
   | { name: "home" }
@@ -64,6 +64,9 @@ function Shell() {
   const [mounted, setMounted] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceSession, setVoiceSession] = useState(0);
+  const [presetCategory, setPresetCategory] = useState<CategoryId | null>(null);
+  const [toast, setToast] = useState<Transaction | null>(null);
+  const toastTimer = useRef<number | null>(null);
   const [now] = useState(() => new Date());
 
   useEffect(() => {
@@ -91,9 +94,24 @@ function Shell() {
     scrollRef.current?.scrollTo({ top: 0 });
   }, []);
 
-  const openVoice = () => {
+  const openVoice = (category?: CategoryId) => {
+    setPresetCategory(typeof category === "string" ? category : null);
     setVoiceSession((value) => value + 1);
     setVoiceOpen(true);
+  };
+
+  const deleteTransaction = (transaction: Transaction) => {
+    store.remove(transaction.id);
+    setToast(transaction);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const undoDelete = () => {
+    if (!toast) return;
+    store.restore(toast);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast(null);
   };
 
   const commitVoice = (expenses: ParsedExpense[], at: Date) => {
@@ -131,6 +149,8 @@ function Shell() {
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
         onOpenAll={() => go({ name: "all" })}
+        onQuick={(category) => openVoice(category)}
+        onDelete={deleteTransaction}
       />
     );
   } else if (route.name === "all") {
@@ -140,10 +160,11 @@ function Shell() {
         now={now}
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
+        onDelete={deleteTransaction}
       />
     );
   } else if (route.name === "stats") {
-    screen = <StatsScreen transactions={store.transactions} />;
+    screen = <StatsScreen transactions={store.transactions} now={now} />;
   } else if (route.name === "budget") {
     screen = (
       <BudgetScreen
@@ -206,10 +227,24 @@ function Shell() {
           </main>
 
           {showChrome && <div className="fade" />}
-          {showChrome && <MicButton onClick={openVoice} />}
+          {showChrome && <MicButton onClick={() => openVoice()} />}
           {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
 
-          <VoiceSheet key={voiceSession} open={voiceOpen} onClose={() => setVoiceOpen(false)} onCommit={commitVoice} />
+          <VoiceSheet
+            key={voiceSession}
+            open={voiceOpen}
+            presetCategory={presetCategory}
+            onClose={() => setVoiceOpen(false)}
+            onCommit={commitVoice}
+          />
+          {toast ? (
+            <div className="toast" role="status">
+              <span>已删除 {toast.title}</span>
+              <button type="button" onClick={undoDelete}>
+                撤销
+              </button>
+            </div>
+          ) : null}
         </>
       )}
     </div>

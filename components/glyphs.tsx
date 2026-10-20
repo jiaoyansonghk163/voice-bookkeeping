@@ -31,7 +31,7 @@ export function toneFor(_title: string, category: CategoryId): Tone {
   return BY_CATEGORY[category];
 }
 
-export function Glyph({ name, size = 20, strokeWidth = 1.8 }: { name: GlyphName; size?: number; strokeWidth?: number }) {
+export function Glyph({ name, size = 24, strokeWidth = 2 }: { name: GlyphName; size?: number; strokeWidth?: number }) {
   const props = {
     width: size,
     height: size,

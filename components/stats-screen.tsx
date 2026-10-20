@@ -1,27 +1,47 @@
 import { Glyph, toneFor } from "@/components/glyphs";
+import { Sparkline } from "@/components/sparkline";
 import { CATEGORIES } from "@/lib/categories";
-import { formatYuanTrim } from "@/lib/format";
+import { formatYuanTrim, weekdayShort } from "@/lib/format";
 import { breakdownByCategory, sumAmounts } from "@/lib/ledger";
+import { presentKpis } from "@/lib/metrics";
 import type { Transaction } from "@/lib/types";
 
-export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
+export function StatsScreen({ transactions, now }: { transactions: Transaction[]; now: Date }) {
   const slices = breakdownByCategory(transactions);
   const total = sumAmounts(transactions);
+  const kpis = presentKpis(transactions, now, null);
 
   return (
     <>
-      <section className="kpis rise" style={{ gridTemplateColumns: "1fr" }}>
+      <section className="kpis rise">
         <article className="kpi glass main">
           <div className="l">账单合计</div>
-          <div className="v num" style={{ color: "var(--spend)" }}>
-            ¥{formatYuanTrim(total)}
-          </div>
+          <div className="v num">¥{formatYuanTrim(total)}</div>
           <div className="d">这台设备上的账单</div>
         </article>
       </section>
       <section className="panel block rise" style={{ animationDelay: ".04s" }}>
         <div className="ph">
-          <h2>分类</h2>
+          <h2>近 7 天</h2>
+          <span>
+            日均{" "}
+            <b className="num" style={{ color: "var(--text)", fontWeight: 600 }}>
+              ¥{formatYuanTrim(kpis.dailyAvg)}
+            </b>
+          </span>
+        </div>
+        <Sparkline values={kpis.days.map((day) => day.total)} />
+        <div className="days">
+          {kpis.days.map((day, index) => (
+            <span key={day.date.toISOString()} className={index === kpis.days.length - 1 ? "on" : undefined}>
+              {index === kpis.days.length - 1 ? "今天" : weekdayShort(day.date)}
+            </span>
+          ))}
+        </div>
+      </section>
+      <section className="panel block rise" style={{ animationDelay: ".08s" }}>
+        <div className="ph">
+          <h2>分类占比</h2>
           <span>{slices.length} 类</span>
         </div>
         <div className="share">
@@ -39,7 +59,10 @@ export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
                     <i style={{ width: `${Math.max(6, Math.round(slice.share * 100))}%` }} />
                   </div>
                 </div>
-                <div className="amt num">¥{formatYuanTrim(slice.total)}</div>
+                <div className="mix-amt">
+                  <div className="amt num">¥{formatYuanTrim(slice.total)}</div>
+                  <div className="sub num">{Math.round(slice.share * 100)}%</div>
+                </div>
               </div>
             );
           })}
