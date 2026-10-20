@@ -1,4 +1,5 @@
 import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
+import { rowKind } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatClock, formatYuanTrim, startOfDay } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
@@ -32,7 +33,7 @@ export function TxnRow({
       <span className="meta">
         <span className="t">{transaction.title}</span>
         <span className="s">
-          {transaction.subcategory} · {when}
+          {rowKind(transaction.category, transaction.subcategory)} · {when}
         </span>
       </span>
       <span className="amt num">-¥{formatYuanTrim(transaction.amount)}</span>

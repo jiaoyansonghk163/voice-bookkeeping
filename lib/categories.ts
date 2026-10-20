@@ -27,9 +27,9 @@ export const CATEGORY_ORDER: CategoryId[] = [
 ];
 
 export const SUBCATEGORIES: Record<CategoryId, readonly string[]> = {
-  food: ["早餐", "午餐", "晚餐", "夜宵", "咖啡饮品", "零食", "买菜", "水果"],
+  food: ["早餐", "午餐", "晚餐", "夜宵", "咖啡饮品", "零食"],
   transit: ["打车", "地铁公交", "加油", "停车"],
-  shopping: ["日用", "服饰", "数码"],
+  shopping: [],
   fun: ["电影演出", "游戏", "其他"],
   home: ["房租水电", "物业", "其他"],
   health: ["药品", "就医", "其他"],
@@ -58,8 +58,21 @@ export function mealFromHour(hour: number): Meal {
 }
 
 export function defaultPick(category: CategoryId, now: Date): string {
+  if (category === "shopping") return "";
   if (category === "food") return mealFromHour(now.getHours()).subcategory;
-  return SUBCATEGORIES[category][0];
+  return SUBCATEGORIES[category][0] ?? "";
+}
+
+/** 购物 has no 小类. The row reads 购物, not 购物 · 日用. */
+export function categoryDetail(category: CategoryId, subcategory: string): string {
+  const label = CATEGORIES[category].label;
+  if (category === "shopping" || !subcategory || subcategory === label) return label;
+  return `${label} · ${subcategory}`;
+}
+
+export function rowKind(category: CategoryId, subcategory: string): string {
+  if (category === "shopping" || !subcategory) return CATEGORIES[category].label;
+  return subcategory;
 }
 
 export interface Classified {
@@ -120,11 +133,6 @@ export function shortenTitle(text: string): string {
   return value;
 }
 
-function fruitOnly(text: string): boolean {
-  if (!/水果/.test(text)) return false;
-  return !/买菜|蔬菜|肉|菜市场|生鲜|菜/.test(text.replace(/水果/g, ""));
-}
-
 function finish(result: Classified): Classified {
   const title = shortenTitle(result.title);
   return { ...result, title: title || result.subcategory || "其他" };
@@ -166,13 +174,9 @@ export function classifyClause(text: string, now: Date): Classified {
   if (/房租|水电|燃气|宽带/.test(title)) return finish({ category: "home", subcategory: "房租水电", title });
   if (/物业/.test(title)) return finish({ category: "home", subcategory: "物业", title });
 
-  if (/衣服|服饰|鞋/.test(title)) return finish({ category: "shopping", subcategory: "服饰", title });
-  if (/数码|手机|电脑/.test(title)) return finish({ category: "shopping", subcategory: "数码", title });
-  if (/日用|纸巾|洗发|洗衣/.test(title)) return finish({ category: "shopping", subcategory: "日用", title });
-
-  if (fruitOnly(title)) return finish(food(title, "水果"));
-  if (/买菜|蔬菜|水果|肉|菜市场|生鲜/.test(title)) return finish(food(title, "买菜"));
-  if (/购物|超市|商场|淘宝/.test(title)) return finish({ category: "shopping", subcategory: "日用", title });
+  if (/衣服|服饰|鞋|数码|手机|电脑|日用|纸巾|洗发|洗衣|买菜|蔬菜|水果|肉|菜市场|生鲜|购物|超市|商场|淘宝/.test(title)) {
+    return finish({ category: "shopping", subcategory: "", title });
+  }
 
   return finish({ category: "other", subcategory: "其他", title });
 }

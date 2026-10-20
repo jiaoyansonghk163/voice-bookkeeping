@@ -55,7 +55,7 @@ The worker caches the extensionless URLs Cloudflare Pages serves (`/`, `/stats`,
 
 ## Voice
 
-`parseTranscript()` in `lib/parse-transcript.ts` is a rule-based parser that stays on the device. One sentence can become several bills when it contains several amounts (for example 「早饭花了¥50中午吃饭花了¥30然后晚上吃饭花了60」). Each bill has a 大类, a 小类, a short note, and an amount. The listening sheet stays up until **完成** or **停止**, then one confirm step saves every row. Older bills without a 小类 pick up the 大类 name; a legacy 「日用」 category becomes 购物 · 日用.
+`parseTranscript()` in `lib/parse-transcript.ts` is a rule-based parser that stays on the device. One sentence can become several bills when it contains several amounts (for example 「早饭花了¥50中午吃饭花了¥30然后晚上吃饭花了60」). Each bill has a 大类, a 小类, a short note, and an amount. The listening sheet stays up until **完成** or **停止**, then one confirm step saves every row. Older bills without a 小类 pick up the 大类 name. 购物 has no 小类, so a legacy 「日用」 category or 购物 · 日用 becomes plain 购物.
 
 Where the browser exposes the Web Speech API, the app calls it with `lang` `zh-CN` and shows the live transcript in the same sheet. The page itself does not upload audio. The browser may:
 

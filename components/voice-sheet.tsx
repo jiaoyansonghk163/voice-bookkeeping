@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Glyph, categoryChipStyle, categoryGlyph, categoryName } from "@/components/glyphs";
 import { captureMode, speechRecognitionSupported, startListening, type ListenSession } from "@/lib/asr";
-import { CATEGORY_ORDER, SUBCATEGORIES, defaultPick } from "@/lib/categories";
+import { CATEGORY_ORDER, SUBCATEGORIES, categoryDetail, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatDetailStamp, formatYuan } from "@/lib/format";
 import { parseTranscript } from "@/lib/parse-transcript";
@@ -545,7 +545,7 @@ function ConfirmMany({
                     onChange={(event) => onChange(entry.key, { title: event.target.value })}
                   />
                   <button type="button" className="esub" onClick={() => onPick(entry.key)}>
-                    {categoryName(entry.category)} · {entry.subcategory}
+                    {categoryDetail(entry.category, entry.subcategory)}
                   </button>
                 </span>
                 <label className="eamt num">

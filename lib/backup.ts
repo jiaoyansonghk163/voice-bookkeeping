@@ -38,13 +38,11 @@ export function normalizeTransaction(value: unknown): Transaction | null {
 
   let category = item.category;
   let subcategory = typeof item.subcategory === "string" ? item.subcategory.trim() : "";
-  if (category === "daily") {
-    category = "shopping";
-    if (!subcategory) subcategory = "日用";
-  }
+  if (category === "daily") category = "shopping";
   if (typeof category !== "string" || !(category in CATEGORIES)) return null;
   const id = category as CategoryId;
-  if (!subcategory || subcategory.length > 20) subcategory = fallbackSubcategory(id);
+  if (id === "shopping" || subcategory === "日用") subcategory = "";
+  else if (!subcategory || subcategory.length > 20) subcategory = fallbackSubcategory(id);
 
   return {
     id: item.id,

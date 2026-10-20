@@ -1,5 +1,5 @@
 import { Glyph, toneFor } from "@/components/glyphs";
-import { CATEGORIES } from "@/lib/categories";
+import { categoryDetail } from "@/lib/categories";
 import { formatDetailStamp, formatYuan } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 
@@ -25,7 +25,7 @@ export function DetailScreen({ transaction, now }: { transaction: Transaction | 
           <Glyph name={tone.glyph} />
         </span>
         <div className="hint" style={{ marginTop: 14 }}>
-          {CATEGORIES[transaction.category].label} · {transaction.subcategory}
+          {categoryDetail(transaction.category, transaction.subcategory)}
         </div>
         <h2 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 650 }}>{transaction.title}</h2>
         <div className="hero" style={{ margin: "18px 0 0" }}>

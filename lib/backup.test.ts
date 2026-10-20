@@ -53,7 +53,28 @@ test("fills a default subcategory and folds the old daily category", () => {
   );
   assert.equal(parsed?.transactions[0]?.subcategory, "餐饮");
   assert.equal(parsed?.transactions[1]?.category, "shopping");
-  assert.equal(parsed?.transactions[1]?.subcategory, "日用");
+  assert.equal(parsed?.transactions[1]?.subcategory, "");
+
+  const detailed = parseBackup(
+    JSON.stringify({
+      version: 1,
+      monthlyBudget: null,
+      transactions: [
+        {
+          id: "old-shop",
+          amount: 20,
+          category: "shopping",
+          subcategory: "日用",
+          title: "纸巾",
+          transcript: "纸巾二十",
+          createdAt: "2026-10-03T00:00:00.000Z",
+          source: "voice",
+        },
+      ],
+    }),
+  );
+  assert.equal(detailed?.transactions[0]?.category, "shopping");
+  assert.equal(detailed?.transactions[0]?.subcategory, "");
 });
 
 test("normalizes an on-device ledger that predates subcategories", () => {
