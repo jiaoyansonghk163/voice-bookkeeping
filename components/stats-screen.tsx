@@ -13,7 +13,9 @@ export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
       <section className="kpis rise" style={{ gridTemplateColumns: "1fr" }}>
         <article className="kpi glass main">
           <div className="l">账单合计</div>
-          <div className="v num">¥{formatYuanTrim(total)}</div>
+          <div className="v num" style={{ color: "var(--spend)" }}>
+            ¥{formatYuanTrim(total)}
+          </div>
           <div className="d">这台设备上的账单</div>
         </article>
       </section>

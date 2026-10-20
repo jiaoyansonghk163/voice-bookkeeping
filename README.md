@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). On a phone, add it to the home screen: the app is a standalone PWA (`viewport-fit=cover`, dark `theme_color`).
+Open [http://localhost:3000](http://localhost:3000). On a phone, add it to the home screen: the app is a standalone PWA (`viewport-fit=cover`, light `theme_color`).
 
 ```bash
 npm test        # Chinese amount parser
@@ -49,7 +49,7 @@ Direct links: `/`, `/stats`, `/budget`, `/me`, `/tx/sample-1` (the sample id exi
 
 Bills and the monthly budget are stored in IndexedDB (`voice-ledger`). If IndexedDB is blocked, the same record is kept in `localStorage` (`voice-ledger.v1`). Nothing is sent to a backend. A reload keeps the rows. **导出账单** downloads a JSON file; **导入账单** replaces the on-device ledger with that file. The app does not load analytics or any other third-party script.
 
-After the first visit to the deployed site, `sw.js` has precached the static files. Opening the app and saving a typed bill then works with no network. Installing it from the browser’s “Add to Home Screen” uses the manifest (`display: standalone`, dark `theme_color`).
+After the first visit to the deployed site, `sw.js` has precached the static files. Opening the app and saving a typed bill then works with no network. Installing it from the browser’s “Add to Home Screen” uses the manifest (`display: standalone`, light `theme_color`).
 
 The worker caches the extensionless URLs Cloudflare Pages serves (`/`, `/stats`, `/tx/sample-1`, and so on), not the `.html` files. Pages redirects those `.html` paths with 308, and Safari refuses a service-worker response whose `redirected` flag is set. A new cache name drops the broken cache on the next visit.
 
@@ -66,4 +66,4 @@ Firefox does not ship recognition enabled. There the sheet is the text field fro
 
 ## Design
 
-Dark, minimal, portrait. The page background is `#0b1224` with soft blue, violet, and cyan glows. Frosted glass (`blur(16px)`, `saturate(1.4)`) is only on the header, the KPI cards, the tab bar, and the voice sheets. The chart and the transaction list sit on an opaque navy panel. The accent runs from `#22d3ee` to `#3b82f6`. Sheets, the backdrop, and the cards move in 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.
+Light, portrait card dashboard. The page is near-white (`#f7f8fa`) with a faint teal wash at the top. Summary figures sit on white cards (20px radius, soft shadow, no border) in a two-column grid. Spend amounts are purple and remaining budget is green. The 7-day chart and the bill list are full-width white cards, and each row uses a pale tinted icon tile. The confirm sheet is an opaque white card over a light dim. Motion is 200–300ms with `cubic-bezier(.22, 1, .36, 1)`, and that motion is removed when `prefers-reduced-motion` is set.

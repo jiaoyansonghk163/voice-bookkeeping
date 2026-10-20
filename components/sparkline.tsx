@@ -36,7 +36,7 @@ export function Sparkline({ values }: { values: number[] }) {
         </g>
         <path fill="url(#spark-fill)" d={fill} />
         <path fill="none" stroke="url(#spark-stroke)" strokeWidth="2.4" strokeLinecap="round" d={line} />
-        <circle cx={lastX} cy={lastY} r="4" fill="#22d3ee" stroke="#0f172a" strokeWidth="2" />
+        <circle cx={lastX} cy={lastY} r="4" fill="#22d3ee" stroke="#fff" strokeWidth="2" />
         <line x1={lastX} y1={lastY} x2={lastX} y2={height} stroke="rgba(34,211,238,.35)" strokeDasharray="3 3" />
       </svg>
     </div>
