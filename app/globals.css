@@ -507,21 +507,20 @@ header.top {
 }
 
 .swipe {
+  position: relative;
   overflow: hidden;
-}
-
-.swipe-track {
-  display: flex;
-  align-items: stretch;
-  width: 100%;
+  border-radius: 12px;
 }
 
 .swipe-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
   width: 60px;
-  flex: 0 0 60px;
   display: grid;
   place-items: center;
-  align-self: stretch;
   background: var(--expense);
   color: #fff;
   font-size: 14px;
@@ -530,10 +529,11 @@ header.top {
 }
 
 .row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 0 0 100%;
   width: 100%;
   min-height: 48px;
   padding: 8px 0;
@@ -543,7 +543,6 @@ header.top {
   color: inherit;
   background: #fff;
   touch-action: pan-y;
-  position: relative;
 }
 
 .swipe:last-child .row,
@@ -552,12 +551,8 @@ header.top {
 }
 
 .row.fresh {
-  background: #eef2ff;
-  border-radius: 12px;
-  padding-left: 8px;
-  padding-right: 8px;
-  margin-left: -8px;
-  width: calc(100% + 16px);
+  background: #fff;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .ic {

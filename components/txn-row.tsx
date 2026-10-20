@@ -39,10 +39,21 @@ export function TxnRow({
 
   return (
     <div className="swipe">
-      <div className="swipe-track" style={{ transform: `translateX(${offset}px)` }}>
+      {canDelete ? (
+        <button
+          type="button"
+          className="swipe-del"
+          aria-label={`删除${transaction.title}`}
+          tabIndex={offset === 0 ? -1 : 0}
+          onClick={() => onDelete?.(transaction)}
+        >
+          删除
+        </button>
+      ) : null}
       <button
         type="button"
         className={cn("row", fresh && "fresh")}
+        style={{ transform: `translateX(${offset}px)` }}
         onClick={() => {
           if (moved.current) {
             moved.current = false;
@@ -95,17 +106,6 @@ export function TxnRow({
         </span>
         <span className="amt num">-¥{formatYuanTrim(transaction.amount)}</span>
       </button>
-      {canDelete ? (
-        <button
-          type="button"
-          className="swipe-del"
-          aria-label={`删除${transaction.title}`}
-          onClick={() => onDelete?.(transaction)}
-        >
-          删除
-        </button>
-      ) : null}
-      </div>
     </div>
   );
 }
