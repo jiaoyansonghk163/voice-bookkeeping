@@ -51,6 +51,8 @@ Bills and the monthly budget are stored in IndexedDB (`voice-ledger`). If Indexe
 
 After the first visit to the deployed site, `sw.js` has precached the static files. Opening the app and saving a typed bill then works with no network. Installing it from the browser’s “Add to Home Screen” uses the manifest (`display: standalone`, dark `theme_color`).
 
+The worker caches the extensionless URLs Cloudflare Pages serves (`/`, `/stats`, `/tx/sample-1`, and so on), not the `.html` files. Pages redirects those `.html` paths with 308, and Safari refuses a service-worker response whose `redirected` flag is set. A new cache name drops the broken cache on the next visit.
+
 ## Voice
 
 `parseTranscript()` in `lib/parse-transcript.ts` is a rule-based parser that stays on the device. One sentence can become several bills when it contains several amounts (for example 「早饭花了¥50中午吃饭花了¥30然后晚上吃饭花了60」). Each bill has a 大类, a 小类, a short note, and an amount. The listening sheet stays up until **完成** or **停止**, then one confirm step saves every row. Older bills without a 小类 pick up the 大类 name; a legacy 「日用」 category becomes 购物 · 日用.
