@@ -69,6 +69,7 @@ function Shell() {
   >(null);
   const toastTimer = useRef<number | null>(null);
   const [now] = useState(() => new Date());
+  const [headerScrolled, setHeaderScrolled] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
@@ -133,6 +134,15 @@ function Shell() {
   };
 
   const ready = mounted && store.ready;
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const onScroll = () => setHeaderScrolled(node.scrollTop > 1);
+    onScroll();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => node.removeEventListener("scroll", onScroll);
+  }, [ready, route.name]);
   const showChrome = route.name !== "detail";
   const monthTitle = `${now.getMonth() + 1} 月账本`;
   const title =
@@ -209,7 +219,7 @@ function Shell() {
         <div className="boot">语音记账</div>
       ) : (
         <>
-          <header className="top glass">
+          <header className={headerScrolled ? "top scrolled" : "top"}>
             <div className="hrow">
               <div>
                 <h1>

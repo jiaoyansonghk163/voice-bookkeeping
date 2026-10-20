@@ -151,7 +151,11 @@ button {
   z-index: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: calc(72px + var(--safe-top)) 16px calc(168px + var(--safe-bottom));
+  /* Header is 72px. Bottom clearance is the tab stack, the mic above it, the toast, and the safe area. */
+  padding:
+    calc(72px + env(safe-area-inset-top))
+    16px
+    calc(14px + 68px + (78px + 64px - 14px - 68px) + 56px + env(safe-area-inset-bottom));
   scrollbar-width: none;
 }
 
@@ -172,9 +176,16 @@ header.top {
   border: none;
   border-radius: 0;
   box-shadow: none;
-  background: transparent;
-  padding-top: var(--safe-top);
+  background: #f8f9fc;
+  padding-top: env(safe-area-inset-top);
   padding-bottom: 8px;
+  min-height: calc(72px + env(safe-area-inset-top));
+}
+
+header.top.scrolled {
+  box-shadow:
+    0 1px 0 rgba(31, 41, 55, 0.08),
+    0 8px 16px rgba(31, 41, 55, 0.04);
 }
 
 .hrow {
@@ -590,8 +601,17 @@ header.top {
 }
 
 .row.fresh {
-  background: #fff;
-  box-shadow: inset 3px 0 0 var(--accent);
+  animation: fresh-fade 2.6s var(--ease) forwards;
+}
+
+@keyframes fresh-fade {
+  0%,
+  45% {
+    background-color: #e8eaff;
+  }
+  100% {
+    background-color: #fff;
+  }
 }
 
 .ic {
