@@ -30,17 +30,17 @@ The production build is a fully static export. There is no Node server to run.
 
 `next.config.ts` sets `output: 'export'`. The build then writes `out/sw.js`, which precaches that export. Paths are root-absolute (`/manifest.webmanifest`, `/icon-192.png`, `/apple-touch-icon.png`, `/sw.js`), which matches a site served from the domain root.
 
-`out/_redirects` sends unknown paths such as a voice entry's `/tx/<id>` back to `index.html` with status 200. Pages serves real files first, so `/_next`, the manifest, the icons, and the service worker are not rewritten. Known screens (`/`, `/stats`, `/budget`, `/me`, `/all`, `/tx/sample-1` … `sample-5`) are also real HTML files.
+`out/_redirects` sends unknown paths such as a voice entry's `/tx/<id>` back to `index.html` with status 200. Pages serves real files first, so `/_next`, the manifest, the icons, and the service worker are not rewritten. Known screens (`/`, `/stats`, `/budget`, `/me`, `/all`, `/tx/sample-1` … `sample-6`) are also real HTML files.
 
 Chinese text uses the system font stack (PingFang SC, Noto Sans CJK SC). On Linux, install a CJK face if glyphs are missing, for example `fonts-noto-cjk`.
 
 ## Screens
 
-- **账单** — this month, today, budget left, a 7-day sparkline, and recent rows, all from bills stored on the device. An empty ledger shows zeros.
-- **语音记账** — the same listening sheet, then confirm. If recognition is missing or offline, the sheet asks you to type the sentence instead.
-- **统计** — category split of the stored bills
-- **预算** — a monthly budget you set on this device
-- **我的** — export and import `语音记账.json`, and the optional **载入示例数据** toggle
+- **账单** — today and this month, frequent categories, and bills grouped by day. An empty ledger shows zeros.
+- **语音记账** — the listening sheet, then a confirm step. Split rows stay in memory until **确认记入**. If recognition is missing or offline, the sheet asks you to type the sentence instead.
+- **统计** — the 7-day chart and the category split
+- **我的** — **预算**, export and import `语音记账.json`, and the optional **载入示例数据** toggle
+- **预算** — the monthly budget, opened from 我的 (`/budget`)
 - **明细** — one transaction, including the original phrase
 
 Direct links: `/`, `/stats`, `/budget`, `/me`, `/tx/sample-1` (the sample id exists only after you load 示例数据).

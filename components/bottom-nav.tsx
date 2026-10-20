@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 
-export type TabId = "home" | "stats" | "budget" | "me";
+export type TabId = "home" | "stats" | "me";
 
 function LedgerIcon() {
   return (
@@ -15,15 +15,6 @@ function StatsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <path d="M4 20V4M4 20h16M8.5 16v-5M13 16V8M17.5 16v-3" />
-    </svg>
-  );
-}
-
-function BudgetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 3.5V12l6 6" />
     </svg>
   );
 }
@@ -58,11 +49,6 @@ export function BottomNav({ current, onChange }: { current: TabId; onChange: (ta
       <button type="button" className={cn("ti", current === "stats" && "on")} onClick={() => onChange("stats")}>
         <StatsIcon />
         统计
-      </button>
-      <div />
-      <button type="button" className={cn("ti", current === "budget" && "on")} onClick={() => onChange("budget")}>
-        <BudgetIcon />
-        预算
       </button>
       <button type="button" className={cn("ti", current === "me" && "on")} onClick={() => onChange("me")}>
         <MeIcon />

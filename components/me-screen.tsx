@@ -9,12 +9,14 @@ export function MeScreen({
   onLoadDemo,
   onClearDemo,
   onImport,
+  onOpenBudget,
 }: {
   ledger: LedgerState;
   demoOn: boolean;
   onLoadDemo: () => void;
   onClearDemo: () => void;
   onImport: (next: LedgerState) => void;
+  onOpenBudget: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
@@ -49,6 +51,9 @@ export function MeScreen({
       <h2>我的</h2>
       <p>账单只存在这台设备的浏览器里，不上传，也没有统计代码。</p>
       <div className="stack">
+        <button type="button" className="quiet-btn" onClick={onOpenBudget}>
+          预算
+        </button>
         <button type="button" className="quiet-btn" onClick={exportFile}>
           导出账单
         </button>

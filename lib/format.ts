@@ -55,6 +55,14 @@ export function formatDayGroup(date: Date, now: Date): string {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+/** List section title: 今天, 昨天, or 10月18日 周六. */
+export function formatDayHeading(date: Date, now: Date): string {
+  const days = Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
+  if (days === 0) return "今天";
+  if (days === 1) return "昨天";
+  return `${date.getMonth() + 1}月${date.getDate()}日 周${WEEKDAY_SHORT[date.getDay()]}`;
+}
+
 export function formatDetailStamp(date: Date, now: Date): string {
   return `${formatDayGroup(date, now)} ${formatClock(date)}`;
 }

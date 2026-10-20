@@ -60,7 +60,7 @@ export function BudgetScreen({
           <i style={{ width: `${Math.round((kpis.bar ?? 0) * 100)}%` }} />
         </div>
         <div className="days" style={{ marginTop: 14 }}>
-          <span>已支出 ¥{formatYuanTrim(kpis.monthSpend)}</span>
+          <span className="num">已支出 ¥{formatYuanTrim(kpis.monthSpend)}</span>
           <span className="on">存在本机</span>
         </div>
         <form

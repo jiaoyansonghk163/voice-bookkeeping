@@ -113,8 +113,20 @@ button {
   box-shadow: var(--shadow);
 }
 
-.num {
+.num,
+.amt,
+.eamt,
+.eamt input,
+.sum,
+.card-stat .v,
+.kpi .v,
+.dayhead b,
+.budget-field input,
+.days span {
   font-variant-numeric: tabular-nums;
+}
+
+.num {
   letter-spacing: -0.02em;
 }
 
@@ -139,7 +151,7 @@ button {
   z-index: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: calc(72px + var(--safe-top)) 16px calc(140px + var(--safe-bottom));
+  padding: calc(72px + var(--safe-top)) 16px calc(168px + var(--safe-bottom));
   scrollbar-width: none;
 }
 
@@ -506,6 +518,32 @@ header.top {
   margin-top: 6px;
 }
 
+.day + .day {
+  margin-top: 4px;
+}
+
+.dayhead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -4px;
+  padding: 8px 4px 4px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.dayhead b {
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .swipe {
   overflow: hidden;
   border-radius: 12px;
@@ -620,14 +658,14 @@ header.top {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(14px + var(--safe-bottom));
+  bottom: 14px;
   z-index: 6;
-  height: 68px;
+  height: calc(68px + env(safe-area-inset-bottom));
   border-radius: 24px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: center;
-  padding: 0;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+  padding: 0 0 env(safe-area-inset-bottom);
 }
 
 .ti {
@@ -639,7 +677,7 @@ header.top {
   font-weight: 400;
   line-height: 1.5;
   color: var(--muted);
-  height: 100%;
+  height: 68px;
   justify-content: center;
 }
 
@@ -659,7 +697,7 @@ header.top {
 .mic {
   position: absolute;
   left: 50%;
-  bottom: calc(42px + var(--safe-bottom));
+  bottom: calc(78px + env(safe-area-inset-bottom));
   z-index: 7;
   transform: translateX(-50%);
   width: 64px;
@@ -700,12 +738,25 @@ header.top {
   bottom: calc(8px + var(--safe-bottom));
   z-index: 21;
   border-radius: 16px;
-  padding: 10px 22px 22px;
+  padding: 10px 22px 14px;
   background: #fff;
   color: var(--text);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
   max-height: calc(100% - var(--peek) - 8px - var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sheet-body {
   overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sheet-foot {
+  flex: 0 0 auto;
+  padding-top: 8px;
 }
 
 .grab {
@@ -958,6 +1009,14 @@ header.top {
   padding: 4px 0 12px;
 }
 
+.picker-lab {
+  flex: 1 0 100%;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .picker button {
   border-radius: 999px;
   padding: 6px 12px;
@@ -972,7 +1031,7 @@ header.top {
 }
 
 .go {
-  margin-top: 22px;
+  margin-top: 0;
   width: 100%;
   height: 56px;
   border-radius: 16px;
@@ -999,7 +1058,7 @@ header.top {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 16px 0 12px;
+  margin: 4px 0 10px;
 }
 
 .batch-total .lab {
@@ -1270,7 +1329,7 @@ header.top {
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: calc(96px + var(--safe-bottom));
+  bottom: calc(132px + env(safe-area-inset-bottom));
   z-index: 15;
   display: flex;
   align-items: center;

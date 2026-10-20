@@ -18,6 +18,7 @@ const SEED: Seed[] = [
   { title: "咖啡", amount: 22, category: "food", subcategory: "咖啡饮品", transcript: "咖啡二十二", daysAgo: 0, hour: 8, minute: 45 },
   { title: "超市", amount: 96, category: "shopping", subcategory: "", transcript: "超市九十六", daysAgo: 1, hour: 19, minute: 20 },
   { title: "电影票", amount: 45, category: "fun", subcategory: "电影演出", transcript: "电影票四十五", daysAgo: 1, hour: 18, minute: 4 },
+  { title: "早饭", amount: 16, category: "food", subcategory: "早餐", transcript: "早饭十六", daysAgo: 3, hour: 8, minute: 10 },
 ];
 
 export const SAMPLE_IDS = SEED.map((_, index) => `sample-${index + 1}`);

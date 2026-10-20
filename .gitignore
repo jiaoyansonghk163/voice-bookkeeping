@@ -4,5 +4,6 @@ out
 .DS_Store
 *.log
 .vercel
+.wrangler
 *.tsbuildinfo
 next-env.d.ts

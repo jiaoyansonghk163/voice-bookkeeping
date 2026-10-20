@@ -2,24 +2,16 @@
 
 import { useRef, useState } from "react";
 import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
-import { rowKind } from "@/lib/categories";
+import { categoryDetail } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { formatClock, formatYuanTrim, startOfDay } from "@/lib/format";
+import { formatYuanTrim } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
-
-function whenLabel(date: Date, now: Date): string {
-  const days = Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
-  if (days <= 0) return formatClock(date);
-  if (days === 1) return "昨天";
-  return `${date.getMonth() + 1}月${date.getDate()}日`;
-}
 
 const ACTION = 60;
 const OPEN = -ACTION;
 
 export function TxnRow({
   transaction,
-  now,
   fresh,
   onOpen,
   onDelete,
@@ -31,7 +23,6 @@ export function TxnRow({
   onDelete?: (transaction: Transaction) => void;
 }) {
   const tone = toneFor(transaction.title, transaction.category);
-  const when = whenLabel(new Date(transaction.createdAt), now);
   const [offset, setOffset] = useState(0);
   const drag = useRef<{ id: number; x: number; y: number; base: number; axis: "x" | "y" | null } | null>(null);
   const moved = useRef(false);
@@ -92,9 +83,7 @@ export function TxnRow({
         </span>
         <span className="meta">
           <span className="t">{transaction.title}</span>
-          <span className="s">
-            {rowKind(transaction.category, transaction.subcategory)} · {when}
-          </span>
+          <span className="s">{categoryDetail(transaction.category, transaction.subcategory)}</span>
         </span>
         <span className="amt num">-¥{formatYuanTrim(transaction.amount)}</span>
       </button>

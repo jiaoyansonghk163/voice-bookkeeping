@@ -44,8 +44,7 @@ function hrefFor(route: Route): string {
 
 function tabFor(route: Route): TabId {
   if (route.name === "stats") return "stats";
-  if (route.name === "budget") return "budget";
-  if (route.name === "me") return "me";
+  if (route.name === "me" || route.name === "budget") return "me";
   return "home";
 }
 
@@ -65,7 +64,9 @@ function Shell() {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceSession, setVoiceSession] = useState(0);
   const [presetCategory, setPresetCategory] = useState<CategoryId | null>(null);
-  const [toast, setToast] = useState<Transaction | null>(null);
+  const [toast, setToast] = useState<
+    { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
+  >(null);
   const toastTimer = useRef<number | null>(null);
   const [now] = useState(() => new Date());
 
@@ -100,25 +101,35 @@ function Shell() {
     setVoiceOpen(true);
   };
 
-  const deleteTransaction = (transaction: Transaction) => {
-    store.remove(transaction.id);
-    setToast(transaction);
+  const showToast = (
+    next: { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] },
+  ) => {
+    setToast(next);
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   };
 
-  const undoDelete = () => {
+  const deleteTransaction = (transaction: Transaction) => {
+    store.remove(transaction.id);
+    showToast({ kind: "delete", transaction });
+  };
+
+  const undoToast = () => {
     if (!toast) return;
-    store.restore(toast);
+    if (toast.kind === "delete") store.restore(toast.transaction);
+    else {
+      for (const transaction of toast.transactions) store.remove(transaction.id);
+    }
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
     setToast(null);
   };
 
   const commitVoice = (expenses: ParsedExpense[], at: Date) => {
     if (expenses.length === 0) return;
-    store.addMany(expenses, at);
+    const saved = store.addMany(expenses, at);
     setVoiceOpen(false);
     go({ name: "home" });
+    showToast({ kind: "added", transactions: saved });
   };
 
   const ready = mounted && store.ready;
@@ -183,6 +194,7 @@ function Shell() {
         onLoadDemo={store.loadDemo}
         onClearDemo={store.clearDemo}
         onImport={store.replaceLedger}
+        onOpenBudget={() => go({ name: "budget" })}
       />
     );
   } else {
@@ -239,8 +251,8 @@ function Shell() {
           />
           {toast ? (
             <div className="toast" role="status">
-              <span>已删除 {toast.title}</span>
-              <button type="button" onClick={undoDelete}>
+              <span>{toast.kind === "delete" ? `已删除 ${toast.transaction.title}` : `已记入 ${toast.transactions.length} 笔`}</span>
+              <button type="button" onClick={undoToast}>
                 撤销
               </button>
             </div>

@@ -2,14 +2,10 @@ import type { ReactNode } from "react";
 import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
 import { TxnRow } from "@/components/txn-row";
 import { CATEGORIES } from "@/lib/categories";
-import { formatYuanTrim } from "@/lib/format";
-import { frequentCategories } from "@/lib/ledger";
+import { formatDayHeading, formatYuanTrim } from "@/lib/format";
+import { frequentCategories, groupByDay } from "@/lib/ledger";
 import { presentKpis } from "@/lib/metrics";
 import type { CategoryId, Transaction } from "@/lib/types";
-
-function sorted(transactions: Transaction[]) {
-  return [...transactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
 
 function Delta({ delta }: { delta: number | null }) {
   if (delta == null) return <div className="d">较上月 —</div>;
@@ -21,6 +17,47 @@ function Delta({ delta }: { delta: number | null }) {
         {arrow} {Math.abs(Math.round(delta * 100))}%
       </b>{" "}
       较上月
+    </div>
+  );
+}
+
+function BillGroups({
+  transactions,
+  now,
+  highlightIds,
+  onOpen,
+  onDelete,
+  empty,
+}: {
+  transactions: Transaction[];
+  now: Date;
+  highlightIds: string[];
+  onOpen: (id: string) => void;
+  onDelete?: (transaction: Transaction) => void;
+  empty: string;
+}) {
+  const groups = groupByDay(transactions, now, formatDayHeading);
+  if (groups.length === 0) return <p className="empty">{empty}</p>;
+  return (
+    <div className="list">
+      {groups.map((group) => (
+        <section className="day" key={group.label}>
+          <div className="dayhead">
+            <span>{group.label}</span>
+            <b className="num">¥{formatYuanTrim(group.total)}</b>
+          </div>
+          {group.items.map((transaction) => (
+            <TxnRow
+              key={transaction.id}
+              transaction={transaction}
+              now={now}
+              fresh={highlightIds.includes(transaction.id)}
+              onOpen={onOpen}
+              onDelete={onDelete}
+            />
+          ))}
+        </section>
+      ))}
     </div>
   );
 }
@@ -53,7 +90,6 @@ export function HomeScreen({
   onDelete: (transaction: Transaction) => void;
 }) {
   const kpis = presentKpis(transactions, now, monthlyBudget);
-  const rows = sorted(transactions);
   const quicks = frequentCategories(transactions);
 
   return (
@@ -111,22 +147,14 @@ export function HomeScreen({
             全部
           </button>
         </div>
-        <div className="list">
-          {rows.length === 0 ? (
-            <p className="empty">还没有账单。点下方麦克风记一笔。</p>
-          ) : (
-            rows.map((transaction) => (
-              <TxnRow
-                key={transaction.id}
-                transaction={transaction}
-                now={now}
-                fresh={highlightIds.includes(transaction.id)}
-                onOpen={onOpen}
-                onDelete={onDelete}
-              />
-            ))
-          )}
-        </div>
+        <BillGroups
+          transactions={transactions}
+          now={now}
+          highlightIds={highlightIds}
+          onOpen={onOpen}
+          onDelete={onDelete}
+          empty="还没有账单。点下方麦克风记一笔。"
+        />
       </section>
     </>
   );
@@ -145,30 +173,20 @@ export function AllScreen({
   onOpen: (id: string) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
-  const rows = sorted(transactions);
-
   return (
     <section className="panel block rise">
       <div className="ph">
         <h2>最近账单</h2>
-        <span>{rows.length} 笔</span>
+        <span className="num">{transactions.length} 笔</span>
       </div>
-      <div className="list">
-        {rows.length === 0 ? (
-          <p className="empty">还没有账单。</p>
-        ) : (
-          rows.map((transaction) => (
-            <TxnRow
-              key={transaction.id}
-              transaction={transaction}
-              now={now}
-              fresh={highlightIds.includes(transaction.id)}
-              onOpen={onOpen}
-              onDelete={onDelete}
-            />
-          ))
-        )}
-      </div>
+      <BillGroups
+        transactions={transactions}
+        now={now}
+        highlightIds={highlightIds}
+        onOpen={onOpen}
+        onDelete={onDelete}
+        empty="还没有账单。"
+      />
     </section>
   );
 }
