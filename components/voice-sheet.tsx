@@ -554,6 +554,7 @@ function ConfirmMany({
                     inputMode="decimal"
                     aria-label={`${entry.title || "这笔"}的金额`}
                     value={entry.amount}
+                    style={{ width: `calc(${Math.max(entry.amount.length, 1)}ch + 2px)` }}
                     onChange={(event) => onChange(entry.key, { amount: event.target.value })}
                   />
                 </label>
