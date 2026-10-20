@@ -24,7 +24,7 @@ test("parses the demo phrases used by speech", () => {
   expectOne("午饭三十八块", { amount: 38, title: "午饭", category: "food", subcategory: "午餐" });
   expectOne("打车十五块五", { amount: 15.5, title: "打车", category: "transit", subcategory: "打车" });
   expectOne("咖啡二十八", { amount: 28, title: "咖啡", category: "food", subcategory: "咖啡饮品" });
-  expectOne("超市买菜六十二块三", { amount: 62.3, title: "超市买菜", category: "shopping", subcategory: "日用" });
+  expectOne("超市买菜六十二块三", { amount: 62.3, title: "买菜", category: "food", subcategory: "买菜" });
   expectOne("地铁四块", { amount: 4, title: "地铁", category: "transit", subcategory: "地铁公交" });
   expectOne("电影票七十八", { amount: 78, title: "电影票", category: "fun", subcategory: "电影演出" });
 });
@@ -39,7 +39,7 @@ test("parses more spoken amounts and categories", () => {
   expectOne("两百块", { amount: 200, title: "其他", category: "other", subcategory: "其他" });
   expectOne("一百零五块", { amount: 105, title: "其他", category: "other", subcategory: "其他" });
   expectOne("两块五", { amount: 2.5, title: "其他", category: "other", subcategory: "其他" });
-  expectOne("买菜41.2元", { amount: 41.2, title: "买菜", category: "shopping", subcategory: "日用" });
+  expectOne("买菜41.2元", { amount: 41.2, title: "买菜", category: "food", subcategory: "买菜" });
 });
 
 test("reads colloquial Chinese numerals", () => {
@@ -121,6 +121,32 @@ test("uses the time of day when the meal is only 吃饭", () => {
   expectOne("吃饭花了二十", { amount: 20, title: "午饭", category: "food", subcategory: "午餐" }, new Date(2026, 9, 20, 12, 30, 0));
   expectOne("吃饭花了二十", { amount: 20, title: "晚饭", category: "food", subcategory: "晚餐" }, new Date(2026, 9, 20, 19, 0, 0));
   expectOne("吃饭花了二十", { amount: 20, title: "夜宵", category: "food", subcategory: "夜宵" }, new Date(2026, 9, 20, 23, 0, 0));
+});
+
+test("keeps grocery notes short and files them under 餐饮", () => {
+  const result = parseTranscript("早饭花了50打车花了20然后晚上吃饭花了40块钱出去超市买菜买水果花了¥100", NOON);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(
+    result.entries.map((entry) => ({
+      title: entry.title,
+      amount: entry.amount,
+      category: entry.category,
+      subcategory: entry.subcategory,
+    })),
+    [
+      { title: "早饭", amount: 50, category: "food", subcategory: "早餐" },
+      { title: "打车", amount: 20, category: "transit", subcategory: "打车" },
+      { title: "晚饭", amount: 40, category: "food", subcategory: "晚餐" },
+      { title: "买菜水果", amount: 100, category: "food", subcategory: "买菜" },
+    ],
+  );
+  for (const entry of result.entries) assert.ok([...entry.title].length <= 6, entry.title);
+
+  expectOne("去超市买了点水果25", { amount: 25, title: "水果", category: "food", subcategory: "水果" });
+  expectOne("超市买日用品三十八", { amount: 38, title: "日用品", category: "shopping", subcategory: "日用" });
+  expectOne("蔬菜十二块", { amount: 12, title: "蔬菜", category: "food", subcategory: "买菜" });
+  expectOne("买菜买水果三十", { amount: 30, title: "买菜水果", category: "food", subcategory: "买菜" });
 });
 
 test("rejects phrases without a confident amount", () => {
