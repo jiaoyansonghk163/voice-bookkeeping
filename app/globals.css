@@ -117,22 +117,6 @@ button {
   letter-spacing: -0.02em;
 }
 
-.status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 44px;
-  padding: 0 26px 0 32px;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.status .r {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -154,7 +138,7 @@ button {
   z-index: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: calc(116px + var(--safe-top)) 16px calc(140px + var(--safe-bottom));
+  padding: calc(72px + var(--safe-top)) 16px calc(140px + var(--safe-bottom));
   scrollbar-width: none;
 }
 
@@ -651,6 +635,8 @@ header.top {
   margin-top: 6px;
   font-size: 15px;
   color: var(--muted);
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .hero {
@@ -773,6 +759,104 @@ header.top {
   justify-content: center;
   gap: 6px;
   width: 100%;
+}
+
+.batch-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 16px 0 12px;
+}
+
+.batch-total .lab {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.batch-total .sum {
+  font-size: 40px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.batch-total .sum small {
+  font-size: 22px;
+  margin-right: 2px;
+  color: var(--slate);
+  font-weight: 600;
+}
+
+.erows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.erow {
+  padding: 8px 8px 8px 10px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.erow-main {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.etitle,
+.eamt input {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.esub {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.eamt {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 1px;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.eamt input {
+  width: 4.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.edel {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.erow .picker {
+  padding-top: 10px;
+}
+
+.go:disabled {
+  opacity: 0.45;
 }
 
 .share {

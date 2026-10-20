@@ -26,14 +26,14 @@ export function HomeScreen({
   transactions,
   now,
   monthlyBudget,
-  highlightId,
+  highlightIds,
   onOpen,
   onOpenAll,
 }: {
   transactions: Transaction[];
   now: Date;
   monthlyBudget: number | null;
-  highlightId: string | null;
+  highlightIds: string[];
   onOpen: (id: string) => void;
   onOpenAll: () => void;
 }) {
@@ -104,7 +104,7 @@ export function HomeScreen({
                 key={transaction.id}
                 transaction={transaction}
                 now={now}
-                fresh={transaction.id === highlightId}
+                fresh={highlightIds.includes(transaction.id)}
                 onOpen={onOpen}
               />
             ))
@@ -118,12 +118,12 @@ export function HomeScreen({
 export function AllScreen({
   transactions,
   now,
-  highlightId,
+  highlightIds,
   onOpen,
 }: {
   transactions: Transaction[];
   now: Date;
-  highlightId: string | null;
+  highlightIds: string[];
   onOpen: (id: string) => void;
 }) {
   const rows = sorted(transactions);
@@ -143,7 +143,7 @@ export function AllScreen({
               key={transaction.id}
               transaction={transaction}
               now={now}
-              fresh={transaction.id === highlightId}
+                fresh={highlightIds.includes(transaction.id)}
               onOpen={onOpen}
             />
           ))

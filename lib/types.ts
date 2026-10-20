@@ -2,7 +2,6 @@ export type CategoryId =
   | "food"
   | "transit"
   | "shopping"
-  | "daily"
   | "fun"
   | "home"
   | "health"
@@ -14,6 +13,7 @@ export interface Transaction {
   id: string;
   amount: number;
   category: CategoryId;
+  subcategory: string;
   title: string;
   transcript: string;
   createdAt: string;
@@ -23,10 +23,11 @@ export interface Transaction {
 export interface ParsedExpense {
   amount: number;
   category: CategoryId;
+  subcategory: string;
   title: string;
   transcript: string;
 }
 
 export type ParseResult =
-  | ({ ok: true } & ParsedExpense)
+  | { ok: true; transcript: string; entries: ParsedExpense[] }
   | { ok: false; transcript: string; reason: string };

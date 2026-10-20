@@ -8,7 +8,6 @@ import { BudgetScreen } from "@/components/budget-screen";
 import { DetailScreen } from "@/components/detail-screen";
 import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
-import { StatusBar } from "@/components/status-bar";
 import { VoiceSheet } from "@/components/voice-sheet";
 import { StoreProvider, useStore } from "@/lib/store";
 import type { ParsedExpense } from "@/lib/types";
@@ -97,8 +96,9 @@ function Shell() {
     setVoiceOpen(true);
   };
 
-  const commitVoice = (expense: ParsedExpense, at: Date) => {
-    store.add(expense, at);
+  const commitVoice = (expenses: ParsedExpense[], at: Date) => {
+    if (expenses.length === 0) return;
+    store.addMany(expenses, at);
     setVoiceOpen(false);
     go({ name: "home" });
   };
@@ -128,7 +128,7 @@ function Shell() {
         transactions={store.transactions}
         now={now}
         monthlyBudget={store.monthlyBudget}
-        highlightId={store.highlightId}
+        highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
         onOpenAll={() => go({ name: "all" })}
       />
@@ -138,7 +138,7 @@ function Shell() {
       <AllScreen
         transactions={store.transactions}
         now={now}
-        highlightId={store.highlightId}
+        highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
       />
     );
@@ -177,7 +177,6 @@ function Shell() {
       ) : (
         <>
           <header className="top glass">
-            <StatusBar />
             <div className="hrow">
               <div>
                 <h1>

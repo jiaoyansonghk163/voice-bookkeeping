@@ -1,6 +1,5 @@
-import { Glyph, toneFor } from "@/components/glyphs";
+import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
 import { cn } from "@/lib/cn";
-import { CATEGORIES } from "@/lib/categories";
 import { formatClock, formatYuanTrim, startOfDay } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 
@@ -28,12 +27,12 @@ export function TxnRow({
   return (
     <button type="button" className={cn("row", fresh && "fresh")} onClick={() => onOpen(transaction.id)}>
       <span className="ic" style={{ background: tone.bg, color: tone.fg }}>
-        <Glyph name={tone.glyph} />
+        <Glyph name={categoryGlyph(transaction.category)} />
       </span>
       <span className="meta">
         <span className="t">{transaction.title}</span>
         <span className="s">
-          {CATEGORIES[transaction.category].label} · {when}
+          {transaction.subcategory} · {when}
         </span>
       </span>
       <span className="amt num">-¥{formatYuanTrim(transaction.amount)}</span>

@@ -1,4 +1,4 @@
-import { emptyLedger, isTransaction, type LedgerState } from "./backup";
+import { emptyLedger, normalizeLedger, normalizeTransaction, type LedgerState } from "./backup";
 
 const DB_NAME = "voice-ledger";
 const DB_VERSION = 1;
@@ -15,7 +15,12 @@ function legacyVoiceEntries(): LedgerState["transactions"] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { transactions?: unknown };
     if (!Array.isArray(parsed.transactions)) return [];
-    return parsed.transactions.filter(isTransaction).filter((item) => item.source === "voice");
+    const transactions: LedgerState["transactions"] = [];
+    for (const item of parsed.transactions) {
+      const transaction = normalizeTransaction(item);
+      if (transaction?.source === "voice") transactions.push(transaction);
+    }
+    return transactions;
   } catch {
     return [];
   }
@@ -27,7 +32,11 @@ function readFallback(): LedgerState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LedgerState>;
     if (!Array.isArray(parsed.transactions)) return null;
-    const transactions = parsed.transactions.filter(isTransaction);
+    const transactions: LedgerState["transactions"] = [];
+    for (const item of parsed.transactions) {
+      const transaction = normalizeTransaction(item);
+      if (transaction) transactions.push(transaction);
+    }
     const monthlyBudget =
       typeof parsed.monthlyBudget === "number" && Number.isFinite(parsed.monthlyBudget)
         ? parsed.monthlyBudget
@@ -88,7 +97,8 @@ export async function loadLedger(): Promise<LedgerState> {
   try {
     const db = await openDb();
     const stored = await idbGet(db);
-    const next = mergeLegacy(stored ?? readFallback() ?? emptyLedger());
+    const base = stored ? normalizeLedger(stored) : (readFallback() ?? emptyLedger());
+    const next = mergeLegacy(base);
     await idbPut(db, next);
     localStorage.removeItem(LEGACY_KEY);
     db.close();

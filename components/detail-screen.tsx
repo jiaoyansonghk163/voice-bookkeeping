@@ -25,7 +25,7 @@ export function DetailScreen({ transaction, now }: { transaction: Transaction | 
           <Glyph name={tone.glyph} />
         </span>
         <div className="hint" style={{ marginTop: 14 }}>
-          {CATEGORIES[transaction.category].label}
+          {CATEGORIES[transaction.category].label} · {transaction.subcategory}
         </div>
         <h2 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 650 }}>{transaction.title}</h2>
         <div className="hero" style={{ margin: "18px 0 0" }}>

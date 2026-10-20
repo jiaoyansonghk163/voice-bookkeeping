@@ -11,7 +11,6 @@ export interface Tone {
 
 const FOOD: Tone = { bg: "rgba(251,146,60,.14)", fg: "#fdba74", glyph: "bowl" };
 const TRANSIT: Tone = { bg: "rgba(59,130,246,.16)", fg: "#93c5fd", glyph: "train" };
-const CUP: Tone = { bg: "rgba(167,139,250,.16)", fg: "#c4b5fd", glyph: "cup" };
 const DAILY: Tone = { bg: "rgba(52,211,153,.14)", fg: "#6ee7b7", glyph: "cart" };
 const FUN: Tone = { bg: "rgba(244,114,182,.14)", fg: "#f9a8d4", glyph: "ticket" };
 const HOME: Tone = { bg: "rgba(251,191,36,.14)", fg: "#fcd34d", glyph: "home" };
@@ -21,19 +20,14 @@ const OTHER: Tone = { bg: "rgba(148,163,184,.16)", fg: "#cbd5e1", glyph: "other"
 const BY_CATEGORY: Record<CategoryId, Tone> = {
   food: FOOD,
   transit: TRANSIT,
-  shopping: CUP,
-  daily: DAILY,
+  shopping: DAILY,
   fun: FUN,
   home: HOME,
   health: HEALTH,
   other: OTHER,
 };
 
-export function toneFor(title: string, category: CategoryId): Tone {
-  if (/咖啡|奶茶/.test(title)) return CUP;
-  if (/电影/.test(title)) return FUN;
-  if (/地铁|公交|高铁|火车/.test(title)) return TRANSIT;
-  if (/超市|买菜/.test(title)) return DAILY;
+export function toneFor(_title: string, category: CategoryId): Tone {
   return BY_CATEGORY[category];
 }
 

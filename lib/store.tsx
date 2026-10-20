@@ -10,8 +10,8 @@ interface StoreValue {
   ready: boolean;
   transactions: Transaction[];
   monthlyBudget: number | null;
-  highlightId: string | null;
-  add: (expense: ParsedExpense, at?: Date) => Transaction;
+  highlightIds: string[];
+  addMany: (expenses: ParsedExpense[], at?: Date) => Transaction[];
   loadDemo: () => void;
   clearDemo: () => void;
   setMonthlyBudget: (amount: number | null) => void;
@@ -22,7 +22,7 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<LedgerState | null>(null);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [highlightIds, setHighlightIds] = useState<string[]>([]);
 
   useEffect(() => {
     let cancel = false;
@@ -39,24 +39,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void saveLedger(state);
   }, [state]);
 
-  const add = useCallback((expense: ParsedExpense, at?: Date) => {
-    const transaction: Transaction = {
+  const addMany = useCallback((expenses: ParsedExpense[], at?: Date) => {
+    const base = (at ?? new Date()).getTime();
+    const transactions: Transaction[] = expenses.map((expense, index) => ({
       id: crypto.randomUUID(),
       amount: expense.amount,
       category: expense.category,
+      subcategory: expense.subcategory,
       title: expense.title,
       transcript: expense.transcript,
-      createdAt: (at ?? new Date()).toISOString(),
+      createdAt: new Date(base + index).toISOString(),
       source: "voice",
-    };
+    }));
     setState((current) =>
-      current ? { ...current, transactions: [transaction, ...current.transactions] } : current,
+      current ? { ...current, transactions: [...transactions].reverse().concat(current.transactions) } : current,
     );
-    setHighlightId(transaction.id);
+    const ids = transactions.map((item) => item.id);
+    setHighlightIds(ids);
     window.setTimeout(() => {
-      setHighlightId((current) => (current === transaction.id ? null : current));
+      setHighlightIds((current) => (current.some((id) => ids.includes(id)) ? [] : current));
     }, 2800);
-    return transaction;
+    return transactions;
   }, []);
 
   const loadDemo = useCallback(() => {
@@ -80,7 +83,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const replaceLedger = useCallback((next: LedgerState) => {
-    setHighlightId(null);
+    setHighlightIds([]);
     setState(next);
   }, []);
 
@@ -89,14 +92,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ready: state !== null,
       transactions: state?.transactions ?? [],
       monthlyBudget: state?.monthlyBudget ?? null,
-      highlightId,
-      add,
+      highlightIds,
+      addMany,
       loadDemo,
       clearDemo,
       setMonthlyBudget,
       replaceLedger,
     }),
-    [state, highlightId, add, loadDemo, clearDemo, setMonthlyBudget, replaceLedger],
+    [state, highlightIds, addMany, loadDemo, clearDemo, setMonthlyBudget, replaceLedger],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
