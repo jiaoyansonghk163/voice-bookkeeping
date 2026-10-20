@@ -19,13 +19,15 @@ const SEED: Seed[] = [
   { title: "电影票", amount: 45, category: "fun", transcript: "电影票四十五", daysAgo: 1, hour: 18, minute: 4 },
 ];
 
+export const SAMPLE_IDS = SEED.map((_, index) => `sample-${index + 1}`);
+
 export function createSampleTransactions(now: Date): Transaction[] {
   return SEED.map((item, index) => {
     const created = new Date(now);
     created.setDate(created.getDate() - item.daysAgo);
     created.setHours(item.hour, item.minute, 0, 0);
     return {
-      id: `sample-${index + 1}`,
+      id: SAMPLE_IDS[index],
       amount: item.amount,
       category: item.category,
       title: item.title,

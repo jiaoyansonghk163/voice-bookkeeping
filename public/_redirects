@@ -1,0 +1,3 @@
+# Cloudflare Pages: files that exist are served first.
+# A voice entry's /tx/<id> is created in the browser, so a refresh falls back to the shell.
+/*    /index.html   200

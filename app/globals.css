@@ -870,6 +870,77 @@ header.top {
   transform: scale(0.97);
 }
 
+.empty {
+  padding: 18px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.typebox {
+  display: block;
+  width: 100%;
+  margin-top: 34px;
+  padding: 8px 0;
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.typebox::placeholder {
+  color: rgba(241, 245, 249, 0.35);
+  font-weight: 500;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.stack .quiet-btn,
+.budget-field .quiet-btn {
+  margin-top: 0;
+}
+
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.budget-field {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.budget-field input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 16px;
+  padding: 0 14px;
+}
+
+.hero .sum.unset {
+  font-size: 34px;
+}
+
 .boot {
   position: absolute;
   inset: 0;

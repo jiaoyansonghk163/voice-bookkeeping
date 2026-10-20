@@ -1,26 +1,44 @@
 import { Sparkline } from "@/components/sparkline";
 import { TxnRow } from "@/components/txn-row";
-import { formatYuanTrim } from "@/lib/format";
+import { formatYuanTrim, weekdayShort } from "@/lib/format";
 import { presentKpis } from "@/lib/metrics";
 import type { Transaction } from "@/lib/types";
+
+function sorted(transactions: Transaction[]) {
+  return [...transactions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function Delta({ delta }: { delta: number | null }) {
+  if (delta == null) return <div className="d">较上月 —</div>;
+  if (Math.abs(delta) < 0.005) return <div className="d">与上月持平</div>;
+  const arrow = delta < 0 ? "↓" : "↑";
+  return (
+    <div className="d">
+      <b>
+        {arrow} {Math.abs(Math.round(delta * 100))}%
+      </b>{" "}
+      较上月
+    </div>
+  );
+}
 
 export function HomeScreen({
   transactions,
   now,
+  monthlyBudget,
   highlightId,
   onOpen,
   onOpenAll,
 }: {
   transactions: Transaction[];
   now: Date;
+  monthlyBudget: number | null;
   highlightId: string | null;
   onOpen: (id: string) => void;
   onOpenAll: () => void;
 }) {
-  const kpis = presentKpis(transactions, now);
-  const rows = [...transactions].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  const kpis = presentKpis(transactions, now, monthlyBudget);
+  const rows = sorted(transactions);
 
   return (
     <>
@@ -30,9 +48,7 @@ export function HomeScreen({
           <div className="v num" data-kpi="month">
             ¥{formatYuanTrim(kpis.monthSpend)}
           </div>
-          <div className="d">
-            <b>↓ 6%</b> 较上月
-          </div>
+          <Delta delta={kpis.delta} />
         </article>
         <article className="kpi glass">
           <div className="l">今日</div>
@@ -44,10 +60,10 @@ export function HomeScreen({
         <article className="kpi glass">
           <div className="l">预算剩余</div>
           <div className="v num" data-kpi="budget">
-            ¥{formatYuanTrim(kpis.budgetLeft)}
+            {kpis.budgetLeft == null ? "未设置" : `¥${formatYuanTrim(kpis.budgetLeft)}`}
           </div>
           <div className="bar">
-            <i style={{ width: `${Math.round(kpis.bar * 100)}%` }} />
+            <i style={{ width: `${Math.round((kpis.bar ?? 0) * 100)}%` }} />
           </div>
         </article>
       </section>
@@ -56,18 +72,19 @@ export function HomeScreen({
         <div className="ph">
           <h2>近 7 天</h2>
           <span>
-            日均 <b className="num" style={{ color: "var(--text)", fontWeight: 600 }}>¥{kpis.dailyAvg}</b>
+            日均{" "}
+            <b className="num" style={{ color: "var(--text)", fontWeight: 600 }}>
+              ¥{formatYuanTrim(kpis.dailyAvg)}
+            </b>
           </span>
         </div>
-        <Sparkline />
+        <Sparkline values={kpis.days.map((day) => day.total)} />
         <div className="days">
-          <span>二</span>
-          <span>三</span>
-          <span>四</span>
-          <span>五</span>
-          <span>六</span>
-          <span>日</span>
-          <span className="on">今天</span>
+          {kpis.days.map((day, index) => (
+            <span key={day.date.toISOString()} className={index === kpis.days.length - 1 ? "on" : undefined}>
+              {index === kpis.days.length - 1 ? "今天" : weekdayShort(day.date)}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -79,15 +96,19 @@ export function HomeScreen({
           </button>
         </div>
         <div className="list">
-          {rows.map((transaction) => (
-            <TxnRow
-              key={transaction.id}
-              transaction={transaction}
-              now={now}
-              fresh={transaction.id === highlightId}
-              onOpen={onOpen}
-            />
-          ))}
+          {rows.length === 0 ? (
+            <p className="empty">还没有账单。点下方麦克风记一笔。</p>
+          ) : (
+            rows.map((transaction) => (
+              <TxnRow
+                key={transaction.id}
+                transaction={transaction}
+                now={now}
+                fresh={transaction.id === highlightId}
+                onOpen={onOpen}
+              />
+            ))
+          )}
         </div>
       </section>
     </>
@@ -105,9 +126,7 @@ export function AllScreen({
   highlightId: string | null;
   onOpen: (id: string) => void;
 }) {
-  const rows = [...transactions].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+  const rows = sorted(transactions);
 
   return (
     <section className="panel block rise">
@@ -116,15 +135,19 @@ export function AllScreen({
         <span>{rows.length} 笔</span>
       </div>
       <div className="list">
-        {rows.map((transaction) => (
-          <TxnRow
-            key={transaction.id}
-            transaction={transaction}
-            now={now}
-            fresh={transaction.id === highlightId}
-            onOpen={onOpen}
-          />
-        ))}
+        {rows.length === 0 ? (
+          <p className="empty">还没有账单。</p>
+        ) : (
+          rows.map((transaction) => (
+            <TxnRow
+              key={transaction.id}
+              transaction={transaction}
+              now={now}
+              fresh={transaction.id === highlightId}
+              onOpen={onOpen}
+            />
+          ))
+        )}
       </div>
     </section>
   );

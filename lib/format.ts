@@ -1,4 +1,9 @@
 const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+const WEEKDAY_SHORT = ["日", "一", "二", "三", "四", "五", "六"];
+
+export function weekdayShort(date: Date): string {
+  return WEEKDAY_SHORT[date.getDay()];
+}
 
 export function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());

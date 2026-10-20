@@ -2,11 +2,14 @@
   "name": "liji",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/precache.mjs",
     "start": "next start",
-    "test": "tsx --test lib/parse-transcript.test.ts"
+    "test": "tsx --test lib/parse-transcript.test.ts lib/backup.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",

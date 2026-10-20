@@ -1,69 +1,43 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { CATEGORIES } from "./categories";
+import { type LedgerState } from "./backup";
+import { loadLedger, saveLedger } from "./persist";
 import { createSampleTransactions } from "./sample-data";
 import type { ParsedExpense, Transaction } from "./types";
-
-const STORAGE_KEY = "liji.ledger.v2";
 
 interface StoreValue {
   ready: boolean;
   transactions: Transaction[];
+  monthlyBudget: number | null;
   highlightId: string | null;
   add: (expense: ParsedExpense, at?: Date) => Transaction;
-  reset: () => void;
+  loadDemo: () => void;
+  clearDemo: () => void;
+  setMonthlyBudget: (amount: number | null) => void;
+  replaceLedger: (next: LedgerState) => void;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-function isTransaction(value: unknown): value is Transaction {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Transaction;
-  return (
-    typeof item.id === "string" &&
-    typeof item.amount === "number" &&
-    Number.isFinite(item.amount) &&
-    typeof item.title === "string" &&
-    typeof item.transcript === "string" &&
-    typeof item.createdAt === "string" &&
-    (item.source === "sample" || item.source === "voice") &&
-    item.category in CATEGORIES
-  );
-}
-
-function loadTransactions(): Transaction[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as { version?: number; transactions?: unknown };
-      if (parsed.version === 2 && Array.isArray(parsed.transactions)) {
-        const items = parsed.transactions.filter(isTransaction);
-        if (items.length > 0) return items;
-      }
-    }
-  } catch {
-    /* fall through to the sample ledger */
-  }
-  return createSampleTransactions(new Date());
-}
-
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
+  const [state, setState] = useState<LedgerState | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
-    setTransactions(loadTransactions());
+    let cancel = false;
+    loadLedger().then((loaded) => {
+      if (!cancel) setState(loaded);
+    });
+    return () => {
+      cancel = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!transactions) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, transactions }));
-    } catch {
-      /* ignore quota / private mode */
-    }
-  }, [transactions]);
+    if (!state) return;
+    void saveLedger(state);
+  }, [state]);
 
   const add = useCallback((expense: ParsedExpense, at?: Date) => {
     const transaction: Transaction = {
@@ -75,7 +49,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       createdAt: (at ?? new Date()).toISOString(),
       source: "voice",
     };
-    setTransactions((current) => [transaction, ...(current ?? [])]);
+    setState((current) =>
+      current ? { ...current, transactions: [transaction, ...current.transactions] } : current,
+    );
     setHighlightId(transaction.id);
     window.setTimeout(() => {
       setHighlightId((current) => (current === transaction.id ? null : current));
@@ -83,20 +59,44 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return transaction;
   }, []);
 
-  const reset = useCallback(() => {
+  const loadDemo = useCallback(() => {
+    const samples = createSampleTransactions(new Date());
+    setState((current) => {
+      if (!current) return current;
+      const own = current.transactions.filter((item) => item.source !== "sample");
+      return { ...current, transactions: [...samples, ...own] };
+    });
+  }, []);
+
+  const clearDemo = useCallback(() => {
+    setState((current) => {
+      if (!current) return current;
+      return { ...current, transactions: current.transactions.filter((item) => item.source !== "sample") };
+    });
+  }, []);
+
+  const setMonthlyBudget = useCallback((amount: number | null) => {
+    setState((current) => (current ? { ...current, monthlyBudget: amount } : current));
+  }, []);
+
+  const replaceLedger = useCallback((next: LedgerState) => {
     setHighlightId(null);
-    setTransactions(createSampleTransactions(new Date()));
+    setState(next);
   }, []);
 
   const value = useMemo<StoreValue>(
     () => ({
-      ready: transactions !== null,
-      transactions: transactions ?? [],
+      ready: state !== null,
+      transactions: state?.transactions ?? [],
+      monthlyBudget: state?.monthlyBudget ?? null,
       highlightId,
       add,
-      reset,
+      loadDemo,
+      clearDemo,
+      setMonthlyBudget,
+      replaceLedger,
     }),
-    [transactions, highlightId, add, reset],
+    [state, highlightId, add, loadDemo, clearDemo, setMonthlyBudget, replaceLedger],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

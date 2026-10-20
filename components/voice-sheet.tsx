@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Glyph, categoryChipStyle, categoryGlyph, categoryName } from "@/components/glyphs";
-import { createSpeechRecognizer, type SpeechRecognizer } from "@/lib/asr";
+import { captureMode, speechRecognitionSupported, startListening, type ListenSession } from "@/lib/asr";
 import { CATEGORY_ORDER } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { formatYuan } from "@/lib/format";
+import { formatDetailStamp, formatYuan } from "@/lib/format";
 import { parseTranscript } from "@/lib/parse-transcript";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
 
@@ -29,26 +29,10 @@ function Chevron() {
   );
 }
 
-function LiveTranscript({ text, done }: { text: string; done: boolean }) {
-  if (!text) {
-    return (
-      <div className="transcript">
-        <span className="cur" />
-      </div>
-    );
-  }
-  if (!done) {
-    return (
-      <div className="transcript">
-        {text}
-        <span className="cur" />
-      </div>
-    );
-  }
+function LiveTranscript({ text }: { text: string }) {
   return (
     <div className="transcript">
-      {text.slice(0, -1)}
-      <span className="q">{text.slice(-1)}</span>
+      {text}
       <span className="cur" />
     </div>
   );
@@ -61,49 +45,67 @@ export function VoiceSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  onCommit: (expense: ParsedExpense) => void;
+  onCommit: (expense: ParsedExpense, at: Date) => void;
 }) {
   const reduceMotion = useReducedMotion() === true;
-  const recognizer = useRef<SpeechRecognizer | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const session = useRef(0);
-  const pendingFinish = useRef(false);
+  const listenRef = useRef<ListenSession | null>(null);
+  const transcriptRef = useRef("");
   const onCloseRef = useRef(onClose);
-  const [phase, setPhase] = useState<"listening" | "review" | "error">("listening");
+  const [phase, setPhase] = useState<"capture" | "review">("capture");
+  const [capture, setCapture] = useState<"speech" | "type">("speech");
   const [transcript, setTranscript] = useState("");
   const [typed, setTyped] = useState("");
+  const [hint, setHint] = useState("说出用途和金额，比如「打车二十五」");
   const [draft, setDraft] = useState<ParsedExpense | null>(null);
+  const [recordedAt, setRecordedAt] = useState<Date>(() => new Date());
   const [category, setCategory] = useState<CategoryId>("food");
   const [picking, setPicking] = useState(false);
   const [run, setRun] = useState(0);
 
-  if (recognizer.current == null) recognizer.current = createSpeechRecognizer();
   onCloseRef.current = onClose;
+
+  const stopMic = () => {
+    listenRef.current?.abort();
+    listenRef.current = null;
+  };
 
   const requestClose = () => {
     session.current += 1;
-    abortRef.current?.abort();
+    stopMic();
     onCloseRef.current();
+  };
+
+  const useTyping = (text: string, message: string) => {
+    stopMic();
+    setCapture("type");
+    setTyped(text);
+    setHint(message);
+    setPhase("capture");
   };
 
   const goReview = (text: string) => {
     const parsed = parseTranscript(text);
     if (!parsed.ok) {
-      setPhase("error");
+      useTyping(text, "没有听清金额，补上用途和金额");
       return;
     }
+    stopMic();
     setDraft(parsed);
     setCategory(parsed.category);
+    setRecordedAt(new Date());
     setPicking(false);
     setPhase("review");
   };
 
   const finish = () => {
-    if (transcript) {
-      goReview(transcript);
+    const text = (capture === "type" ? typed : transcript).trim();
+    listenRef.current?.stop();
+    if (!text) {
+      useTyping("", "没有听到内容，可以直接输入，比如「午饭三十八」");
       return;
     }
-    pendingFinish.current = true;
+    goReview(text);
   };
 
   useEffect(() => {
@@ -119,65 +121,74 @@ export function VoiceSheet({
     if (!open) return;
     const id = session.current + 1;
     session.current = id;
-    pendingFinish.current = false;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setPhase("listening");
+    stopMic();
+    setPhase("capture");
+    transcriptRef.current = "";
     setTranscript("");
     setTyped("");
     setDraft(null);
     setPicking(false);
+    setHint("说出用途和金额，比如「打车二十五」");
 
-    recognizer.current?.recognize({ signal: controller.signal, delayMs: reduceMotion ? 200 : 700 }).then(
-      (result) => {
-        if (session.current !== id) return;
-        setTranscript(result.transcript);
-        if (pendingFinish.current) {
-          pendingFinish.current = false;
-          const parsed = parseTranscript(result.transcript);
-          if (!parsed.ok) {
-            setPhase("error");
-            return;
-          }
-          setDraft(parsed);
-          setCategory(parsed.category);
-          setPhase("review");
-        }
-      },
-      (error: unknown) => {
-        if (session.current !== id) return;
-        if (error instanceof Error && error.name === "AbortError") return;
-        setPhase("error");
-      },
-    );
-
-    return () => {
-      session.current += 1;
-      controller.abort();
-    };
-  }, [open, run, reduceMotion]);
-
-  useEffect(() => {
-    if (phase !== "listening" || !transcript) return;
-    if (reduceMotion) {
-      setTyped(transcript);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (offline || !speechRecognitionSupported()) {
+      setCapture("type");
+      setHint(
+        offline
+          ? "当前离线，输入一句话，比如「午饭三十八」"
+          : "这台设备不能语音识别，输入一句话，比如「午饭三十八」",
+      );
       return;
     }
-    setTyped("");
-    let index = 0;
-    const timer = window.setInterval(() => {
-      index += 1;
-      setTyped(transcript.slice(0, index));
-      if (index >= transcript.length) window.clearInterval(timer);
-    }, 55);
-    return () => window.clearInterval(timer);
-  }, [phase, transcript, reduceMotion]);
+    setCapture("speech");
 
-  const done = Boolean(transcript) && typed === transcript;
-  const motionProps = reduceMotion
-    ? { duration: 0.01 }
-    : { duration: 0.3, ease: EASE };
+    let cancelled = false;
+    void captureMode().then((mode) => {
+      if (cancelled || session.current !== id) return;
+      if (mode === "type") {
+        setCapture("type");
+        setHint("这台设备不能语音识别，输入一句话，比如「午饭三十八」");
+        return;
+      }
+      const sessionHandle = startListening(mode, {
+        onTranscript: (text) => {
+          if (session.current !== id) return;
+          transcriptRef.current = text;
+          setTranscript(text);
+        },
+        onError: (code) => {
+          if (session.current !== id || code === "aborted" || code === "no-speech") return;
+          setTyped(transcriptRef.current);
+          setCapture("type");
+          setHint(
+            code === "not-allowed"
+              ? "没有麦克风权限，改为输入，比如「午饭三十八」"
+              : "识别没连上，改为输入，比如「午饭三十八」",
+          );
+        },
+      });
+      if (session.current !== id) {
+        sessionHandle?.abort();
+        return;
+      }
+      listenRef.current = sessionHandle;
+    });
+
+    return () => {
+      cancelled = true;
+      session.current += 1;
+      stopMic();
+    };
+  }, [open, run]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onOffline = () => useTyping(transcript, "当前离线，输入一句话，比如「午饭三十八」");
+    window.addEventListener("offline", onOffline);
+    return () => window.removeEventListener("offline", onOffline);
+  }, [open, transcript]);
+
+  const motionProps = reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: EASE };
 
   return (
     <AnimatePresence>
@@ -198,7 +209,7 @@ export function VoiceSheet({
           className="sheet glass"
           role="dialog"
           aria-modal="true"
-          aria-label={phase === "review" ? "确认这笔账" : "正在聆听"}
+          aria-label={phase === "review" ? "确认这笔账" : capture === "type" ? "手动输入" : "正在聆听"}
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
@@ -209,6 +220,7 @@ export function VoiceSheet({
           {phase === "review" && draft ? (
             <Confirm
               draft={draft}
+              when={formatDetailStamp(recordedAt, recordedAt)}
               category={category}
               picking={picking}
               onPick={() => setPicking((value) => !value)}
@@ -218,47 +230,42 @@ export function VoiceSheet({
               }}
               onClose={requestClose}
               onAgain={() => setRun((value) => value + 1)}
-              onCommit={() => onCommit({ ...draft, category })}
+              onCommit={() => onCommit({ ...draft, category }, recordedAt)}
             />
-          ) : phase === "error" ? (
-            <>
-              <div className="shead">
-                <h2>没有听清</h2>
-                <button type="button" className="x" aria-label="关闭" onClick={requestClose}>
-                  <CloseIcon />
-                </button>
-              </div>
-              <div className="hint">再说一次，带上用途和金额</div>
-              <div className="ctrl">
-                <button type="button" className="tbtn l" onClick={requestClose}>
-                  取消
-                </button>
-                <button type="button" className="stop" aria-label="重新说" onClick={() => setRun((value) => value + 1)}>
-                  <i />
-                </button>
-                <button type="button" className="tbtn r" onClick={() => setRun((value) => value + 1)}>
-                  重说
-                </button>
-              </div>
-            </>
           ) : (
             <>
               <div className="shead">
                 <div className="listen">
-                  <span className="dot" />
-                  正在聆听…
+                  {capture === "speech" ? <span className="dot" /> : null}
+                  {capture === "speech" ? "正在聆听…" : "手动输入"}
                 </div>
                 <button type="button" className="x" aria-label="关闭" onClick={requestClose}>
                   <CloseIcon />
                 </button>
               </div>
-              <LiveTranscript text={typed} done={done} />
-              <div className="hint">说出用途和金额，比如「打车二十五」</div>
-              <div className="wave" aria-hidden="true">
-                {WAVE.map((height, index) => (
-                  <i key={index} style={{ height, opacity: index > 22 ? 0.35 : 0.85 }} />
-                ))}
-              </div>
+              {capture === "speech" ? (
+                <LiveTranscript text={transcript} />
+              ) : (
+                <input
+                  className="typebox"
+                  value={typed}
+                  placeholder="午饭三十八"
+                  autoFocus
+                  aria-label="输入用途和金额"
+                  onChange={(event) => setTyped(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") finish();
+                  }}
+                />
+              )}
+              <div className="hint">{hint}</div>
+              {capture === "speech" ? (
+                <div className="wave" aria-hidden="true">
+                  {WAVE.map((height, index) => (
+                    <i key={index} style={{ height, opacity: index > 22 ? 0.35 : 0.85 }} />
+                  ))}
+                </div>
+              ) : null}
               <div className="ctrl">
                 <button type="button" className="tbtn l" onClick={requestClose}>
                   取消
@@ -280,6 +287,7 @@ export function VoiceSheet({
 
 function Confirm({
   draft,
+  when,
   category,
   picking,
   onPick,
@@ -289,6 +297,7 @@ function Confirm({
   onCommit,
 }: {
   draft: ParsedExpense;
+  when: string;
   category: CategoryId;
   picking: boolean;
   onPick: () => void;
@@ -339,7 +348,7 @@ function Confirm({
         <div className="f">
           <span className="k">时间</span>
           <span className="v">
-            今天 12:30
+            {when}
             <Chevron />
           </span>
         </div>

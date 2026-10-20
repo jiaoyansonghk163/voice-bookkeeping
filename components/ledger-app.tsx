@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { LedgerState } from "@/lib/backup";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
 import { BottomNav, MicButton, type TabId } from "@/components/bottom-nav";
 import { BudgetScreen } from "@/components/budget-screen";
@@ -21,7 +22,9 @@ type Route =
   | { name: "detail"; id: string };
 
 function parsePath(path: string): { route: Route; replace?: string } {
-  if (path === "/" || path === "") return { route: { name: "home" } };
+  const normalized = path.length > 1 ? path.replace(/\/+$/, "") : path;
+  if (normalized === "/" || normalized === "") return { route: { name: "home" } };
+  path = normalized;
   if (path === "/stats" || path === "/categories") return { route: { name: "stats" } };
   if (path === "/budget") return { route: { name: "budget" } };
   if (path === "/me") return { route: { name: "me" } };
@@ -65,6 +68,14 @@ function Shell() {
   const [now] = useState(() => new Date());
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") return;
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* the static shell still works online if the worker cannot install */
+    });
+  }, []);
+
+  useEffect(() => {
     const parsed = parsePath(window.location.pathname);
     if (parsed.replace) window.history.replaceState(null, "", parsed.replace);
     setRoute(parsed.route);
@@ -86,10 +97,7 @@ function Shell() {
     setVoiceOpen(true);
   };
 
-  const commitVoice = (expense: ParsedExpense) => {
-    const at = new Date(now);
-    const prior = store.transactions.filter((item) => item.source === "voice").length;
-    at.setHours(12, 30, 30 + prior, 0);
+  const commitVoice = (expense: ParsedExpense, at: Date) => {
     store.add(expense, at);
     setVoiceOpen(false);
     go({ name: "home" });
@@ -119,6 +127,7 @@ function Shell() {
       <HomeScreen
         transactions={store.transactions}
         now={now}
+        monthlyBudget={store.monthlyBudget}
         highlightId={store.highlightId}
         onOpen={(id) => go({ name: "detail", id })}
         onOpenAll={() => go({ name: "all" })}
@@ -136,9 +145,25 @@ function Shell() {
   } else if (route.name === "stats") {
     screen = <StatsScreen transactions={store.transactions} />;
   } else if (route.name === "budget") {
-    screen = <BudgetScreen transactions={store.transactions} now={now} />;
+    screen = (
+      <BudgetScreen
+        transactions={store.transactions}
+        now={now}
+        monthlyBudget={store.monthlyBudget}
+        onSave={store.setMonthlyBudget}
+      />
+    );
   } else if (route.name === "me") {
-    screen = <MeScreen onReset={store.reset} />;
+    const ledger: LedgerState = { transactions: store.transactions, monthlyBudget: store.monthlyBudget };
+    screen = (
+      <MeScreen
+        ledger={ledger}
+        demoOn={store.transactions.some((item) => item.source === "sample")}
+        onLoadDemo={store.loadDemo}
+        onClearDemo={store.clearDemo}
+        onImport={store.replaceLedger}
+      />
+    );
   } else {
     const transaction = store.transactions.find((item) => item.id === route.id) ?? null;
     screen = <DetailScreen transaction={transaction} now={now} />;

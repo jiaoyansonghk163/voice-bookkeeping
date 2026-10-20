@@ -14,7 +14,7 @@ export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
         <article className="kpi glass main">
           <div className="l">账单合计</div>
           <div className="v num">¥{formatYuanTrim(total)}</div>
-          <div className="d">当前列表 · 示例数据</div>
+          <div className="d">这台设备上的账单</div>
         </article>
       </section>
       <section className="panel block rise" style={{ animationDelay: ".04s" }}>
@@ -23,6 +23,7 @@ export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
           <span>{slices.length} 类</span>
         </div>
         <div className="share">
+          {slices.length === 0 ? <p className="empty">还没有账单。</p> : null}
           {slices.map((slice) => {
             const tone = toneFor(CATEGORIES[slice.category].label, slice.category);
             return (
@@ -42,7 +43,7 @@ export function StatsScreen({ transactions }: { transactions: Transaction[] }) {
           })}
         </div>
       </section>
-      <p className="fine">首页的月度数字是整月示例，这里按当前账单汇总。</p>
+      <p className="fine">这里按这台设备上的账单汇总。</p>
     </>
   );
 }
