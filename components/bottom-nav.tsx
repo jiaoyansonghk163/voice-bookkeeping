@@ -41,6 +41,10 @@ export function BottomNav({ current, onChange }: { current: TabId; onChange: (ta
         <i />
         统计
       </button>
+      <button type="button" className={cn("ti", current === "me" && "on")} onClick={() => onChange("me")}>
+        <i />
+        我的
+      </button>
     </nav>
   );
 }

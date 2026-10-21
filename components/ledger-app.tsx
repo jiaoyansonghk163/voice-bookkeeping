@@ -158,7 +158,7 @@ function Shell() {
     return () => node.removeEventListener("scroll", onScroll);
   }, [ready, route.name]);
   const showChrome = route.name !== "detail" && !voiceOpen;
-  const pageTitle = route.name === "home" || route.name === "stats";
+  const pageTitle = route.name === "home" || route.name === "stats" || route.name === "me";
   const title =
     route.name === "budget"
       ? "预算"
@@ -167,7 +167,7 @@ function Shell() {
         : route.name === "all"
           ? "全部账单"
           : "明细";
-  const showBack = route.name === "detail" || route.name === "all" || route.name === "budget" || route.name === "me";
+  const showBack = route.name === "detail" || route.name === "all" || route.name === "budget";
 
   let screen = null;
   if (route.name === "home") {
@@ -191,21 +191,7 @@ function Shell() {
       />
     );
   } else if (route.name === "stats") {
-    const ledger: LedgerState = { transactions: store.transactions, monthlyBudget: store.monthlyBudget };
-    screen = (
-      <>
-        <StatsScreen transactions={store.transactions} now={now} />
-        <MeScreen
-          compact
-          ledger={ledger}
-          demoOn={store.transactions.some((item) => item.source === "sample")}
-          onLoadDemo={store.loadDemo}
-          onClearDemo={store.clearDemo}
-          onImport={store.replaceLedger}
-          onOpenBudget={() => go({ name: "budget" })}
-        />
-      </>
-    );
+    screen = <StatsScreen transactions={store.transactions} now={now} />;
   } else if (route.name === "budget") {
     screen = (
       <BudgetScreen
@@ -257,11 +243,13 @@ function Shell() {
           )}
 
           <main ref={scrollRef} className={pageTitle ? "scroll page" : showChrome ? "scroll" : "scroll plain"} data-screen={route.name}>
-            {screen}
+            <div key={route.name} className="pane">
+              {screen}
+            </div>
           </main>
 
           {showChrome && <MicButton label="语音记账" onClick={() => openVoice()} />}
-          {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab === "me" ? "home" : tab })} />}
+          {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
 
           <VoiceSheet
             key={voiceSession}

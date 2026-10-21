@@ -20,6 +20,17 @@ const WAVE = [8, 14, 10, 18, 12, 16, 9];
 const SHEET_WATCHDOG_MS = 15_000;
 
 type Capture = "listen" | "quiet" | "failed" | "type";
+type Pane = "listen" | "failed" | "type" | "review";
+
+interface Face {
+  pane: Pane;
+  title: string;
+  subtitle: string;
+  transcript: string;
+  typed: string;
+  entries: DraftEntry[];
+  picking: string | null;
+}
 
 interface DraftEntry extends EditableDraft {
   key: string;
@@ -286,20 +297,59 @@ export function VoiceSheet({
     return () => window.removeEventListener("offline", onOffline);
   }, [open]);
 
-  if (!open) return null;
+  const stageRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const place = () => {
+      const node = stageRef.current;
+      if (!node) return;
+      node.style.top = `${viewport.offsetTop}px`;
+      node.style.height = `${viewport.height}px`;
+      node.style.bottom = "auto";
+    };
+    viewport.addEventListener("resize", place);
+    viewport.addEventListener("scroll", place);
+    place();
+    return () => {
+      viewport.removeEventListener("resize", place);
+      viewport.removeEventListener("scroll", place);
+    };
+  }, [open]);
 
   const ready = commitOrDrop("confirm", entries) !== null && !commitLocked;
   const listening = capture === "listen" || capture === "quiet";
   const title =
     capture === "quiet" ? VOICE_COPY.quietTitle : capture === "failed" ? VOICE_COPY.failTitle : capture === "type" ? VOICE_COPY.typeTitle : VOICE_COPY.listenTitle;
   const subtitle = capture === "quiet" ? VOICE_COPY.quietSubtitle : capture === "failed" ? VOICE_COPY.failSubtitle : capture === "listen" ? VOICE_COPY.listenSubtitle : "";
+  const pane: Pane = phase === "review" ? "review" : listening ? "listen" : capture === "failed" ? "failed" : "type";
+  const live: Face = { pane, title, subtitle, transcript, typed, entries, picking };
+  const frontRef = useRef(live);
+  const [front, setFront] = useState(live);
+  const [back, setBack] = useState<Face | null>(null);
+  frontRef.current = front;
 
-  return (
-    <section className={cn("stage", listening && "listen")} role="dialog" aria-modal="true" aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}>
-      {phase === "review" ? (
+  useEffect(() => {
+    if (frontRef.current.pane === pane) return;
+    setBack(frontRef.current);
+    setFront(live);
+    const id = window.setTimeout(() => setBack(null), 180);
+    return () => window.clearTimeout(id);
+  }, [pane]);
+
+  useEffect(() => {
+    setFront((current) => (current.pane === pane ? live : current));
+  }, [pane, title, subtitle, transcript, typed, entries, picking]);
+
+  if (!open) return null;
+
+  const paint = (face: Face) => {
+    if (face.pane === "review") {
+      return (
         <ConfirmEntries
-          entries={entries}
-          picking={picking}
+          entries={face.entries}
+          picking={face.picking}
           onPick={(key) => setPicking((value) => (value === key ? null : key))}
           onChange={updateEntry}
           onRemove={(key) => {
@@ -310,9 +360,21 @@ export function VoiceSheet({
           onCancel={requestClose}
           onCommit={confirmEntries}
         />
-      ) : listening ? (
-        <ListenStage title={title} subtitle={subtitle} transcript={transcript} onType={() => switchToType(transcriptRef.current)} onFinish={finish} />
-      ) : capture === "failed" ? (
+      );
+    }
+    if (face.pane === "listen") {
+      return (
+        <ListenStage
+          title={face.title}
+          subtitle={face.subtitle}
+          transcript={face.transcript}
+          onType={() => switchToType(transcriptRef.current)}
+          onFinish={finish}
+        />
+      );
+    }
+    if (face.pane === "failed") {
+      return (
         <div className="listen-col">
           <h1 className="listen-title">{VOICE_COPY.failTitle}</h1>
           <p className="listen-sub">{VOICE_COPY.failSubtitle}</p>
@@ -320,9 +382,21 @@ export function VoiceSheet({
             {VOICE_COPY.typeInstead}
           </button>
         </div>
-      ) : (
-        <TypeStage typed={typed} onChange={setTyped} onClear={clearTyped} onFinish={finish} onRecord={startRecording} />
-      )}
+      );
+    }
+    return <TypeStage typed={face.typed} onChange={setTyped} onClear={clearTyped} onFinish={finish} onRecord={startRecording} />;
+  };
+
+  return (
+    <section ref={stageRef} className="stage" role="dialog" aria-modal="true" aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}>
+      <div className="slot">
+        {back ? (
+          <div className={cn("pane", "out", back.pane === "listen" && "listen")} aria-hidden="true">
+            {paint(back)}
+          </div>
+        ) : null}
+        <div className={cn("pane", back && "in", front.pane === "listen" && "listen")}>{paint(front)}</div>
+      </div>
     </section>
   );
 }
@@ -344,6 +418,7 @@ function ListenStage({
     <>
       <div className="listen-col">
         <div className="halo" aria-hidden="true">
+          <span className="halo-ring" />
           <span className="halo-core">
             <MicMark />
           </span>
@@ -431,7 +506,9 @@ function ConfirmEntries({
     <div className="confirm-page">
       <h1>{VOICE_COPY.confirmTitle}</h1>
       <p className="page-sub">{VOICE_COPY.confirmHint}</p>
-      {unsure ? <p className="warn-bar">{VOICE_COPY.lowConfidence}</p> : null}
+      <p className={cn("warn-bar", unsure && "on")} aria-hidden={unsure ? undefined : true}>
+        {VOICE_COPY.lowConfidence}
+      </p>
       <div className="confirm-list">
         {entries.map((entry) => (
           <article className="confirm-card" key={entry.key}>

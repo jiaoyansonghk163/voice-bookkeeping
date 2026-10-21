@@ -60,7 +60,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setHighlightIds(ids);
     window.setTimeout(() => {
       setHighlightIds((current) => (current.some((id) => ids.includes(id)) ? [] : current));
-    }, 2800);
+    }, 940);
     return transactions;
   }, []);
 
