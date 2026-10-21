@@ -25,7 +25,10 @@ test("the install name is 璃记 and a maskable icon is declared", () => {
   };
   assert.equal(manifest.name, "璃记");
   assert.equal(manifest.short_name, "璃记");
+  assert.equal((manifest as { theme_color?: string }).theme_color, "#F8F9FC");
+  assert.equal((manifest as { background_color?: string }).background_color, "#F8F9FC");
   assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable" && icon.src.includes("512")));
+  assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable" && icon.src.includes("192")));
 });
 
 test("service worker cache generation is v3 and includes file bytes", () => {

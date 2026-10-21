@@ -9,6 +9,8 @@ export interface EditableDraft {
   subcategory: string;
   title: string;
   transcript: string;
+  confidence: "high" | "low";
+  day: string;
 }
 
 export interface OpenDraft {
@@ -20,6 +22,20 @@ function readAmount(text: string): number | null {
   const value = Number(text.replace(/[¥￥,\s]/g, ""));
   if (!Number.isFinite(value) || value <= 0 || value > 99_999) return null;
   return roundMoney(value);
+}
+
+export function dayString(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export function createdAtFromDay(day: string, clock: Date): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return clock.toISOString();
+  const next = new Date(clock);
+  next.setFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return next.toISOString();
 }
 
 /** Parse into an in-memory draft. This does not touch the device ledger. */
@@ -34,6 +50,8 @@ export function stageUtterance(text: string, now = new Date(), preset?: Category
       subcategory: preset ? defaultPick(preset, now) : entry.subcategory,
       title: entry.title,
       transcript: parsed.transcript,
+      confidence: entry.confidence === "low" ? "low" : "high",
+      day: dayString(now),
     })),
   };
 }

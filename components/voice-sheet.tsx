@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Glyph, categoryChipStyle, categoryGlyph, categoryName } from "@/components/glyphs";
 import {
-  QUIET_LISTEN_HINT,
   captureMode,
-  listenFallbackHint,
   prepareMicrophone,
   speechRecognitionSupported,
   startListening,
@@ -14,24 +12,19 @@ import {
 } from "@/lib/asr";
 import { CATEGORY_ORDER, SUBCATEGORIES, categoryDetail, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { commitOrDrop, stageUtterance, sumEditable, type EditableDraft } from "@/lib/drafts";
-import { formatYuan } from "@/lib/format";
+import { commitOrDrop, createdAtFromDay, stageUtterance, type EditableDraft } from "@/lib/drafts";
+import { VOICE_COPY, confirmCount, confirmSubtitle } from "@/lib/voice-copy";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const WAVE = [6, 8, 12, 18, 26, 34, 28, 40, 48, 36, 30, 44, 52, 42, 34, 26, 38, 46, 32, 24, 30, 20, 14, 18, 12, 8, 10, 6, 5, 4];
-const LISTEN_HINT = "说出用途和金额，比如「打车二十五」";
-const EMPTY_HINT = "没有听到内容，可以直接输入，比如「午饭三十八」";
+const LOW_BARS = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6];
 /** Last resort if recognition never starts and never errors. The session has its own shorter timer. */
 const SHEET_WATCHDOG_MS = 15_000;
 
-interface DraftEntry {
+type Capture = "listen" | "quiet" | "failed" | "type";
+
+interface DraftEntry extends EditableDraft {
   key: string;
-  amount: string;
-  category: CategoryId;
-  subcategory: string;
-  title: string;
-  transcript: string;
 }
 
 function CloseIcon() {
@@ -42,11 +35,30 @@ function CloseIcon() {
   );
 }
 
+function MicIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
+    </svg>
+  );
+}
+
 function LiveTranscript({ text }: { text: string }) {
   return (
     <div className="transcript">
       {text}
       <span className="cur" />
+    </div>
+  );
+}
+
+function StaticWave() {
+  return (
+    <div className="wave" aria-hidden="true">
+      {LOW_BARS.map((height, index) => (
+        <i key={index} style={{ height, opacity: 0.45 }} />
+      ))}
     </div>
   );
 }
@@ -68,11 +80,11 @@ export function VoiceSheet({
   const listeningRef = useRef(false);
   const transcriptRef = useRef("");
   const onCloseRef = useRef(onClose);
+  const wantSpeech = useRef(false);
   const [phase, setPhase] = useState<"capture" | "review">("capture");
-  const [capture, setCapture] = useState<"speech" | "type">("speech");
+  const [capture, setCapture] = useState<Capture>(presetCategory ? "type" : "listen");
   const [transcript, setTranscript] = useState("");
   const [typed, setTyped] = useState("");
-  const [hint, setHint] = useState(LISTEN_HINT);
   const [entries, setEntries] = useState<DraftEntry[]>([]);
   const [recordedAt, setRecordedAt] = useState<Date>(() => new Date());
   const [picking, setPicking] = useState<string | null>(null);
@@ -97,55 +109,100 @@ export function VoiceSheet({
     onCloseRef.current();
   };
 
-  const useTyping = (text: string, message: string) => {
+  const switchToType = (text: string) => {
     listeningRef.current = false;
     session.current += 1;
     stopMic();
+    finishLock.current = false;
     setCapture("type");
     setTyped(text);
-    setHint(message);
+    setPhase("capture");
+  };
+
+  const showFailed = () => {
+    listeningRef.current = false;
+    session.current += 1;
+    stopMic();
+    finishLock.current = false;
+    setCapture("failed");
     setPhase("capture");
   };
 
   const goReview = (text: string) => {
     const staged = stageUtterance(text, new Date(), presetCategory);
-    if (!staged) {
-      useTyping(text, "没有听清金额，补上用途和金额");
-      return;
-    }
+    if (!staged) return false;
     stopMic();
-    setEntries(
-      staged.entries.map((entry) => ({
-        key: crypto.randomUUID(),
-        ...entry,
-      })),
-    );
+    setEntries(staged.entries.map((entry) => ({ key: crypto.randomUUID(), ...entry })));
     setRecordedAt(new Date());
     setPicking(null);
     setPhase("review");
+    return true;
   };
 
   const finish = () => {
     if (finishLock.current) return;
+    if (capture === "type") {
+      const text = typed.trim();
+      if (!text) return;
+      if (!stageUtterance(text, new Date(), presetCategory)) return;
+      finishLock.current = true;
+      session.current += 1;
+      goReview(text);
+      return;
+    }
     finishLock.current = true;
     const handle = listenRef.current;
     listenRef.current = null;
     listeningRef.current = false;
-    // Stop before invalidating the session so a last onresult can land in the ref.
     handle?.stop();
-    const text = (capture === "type" ? typed : transcriptRef.current).trim();
-    if (!text) {
+    const text = transcriptRef.current.trim();
+    if (!text || !stageUtterance(text, new Date(), presetCategory)) {
       finishLock.current = false;
-      useTyping("", EMPTY_HINT);
+      showFailed();
       return;
     }
     session.current += 1;
-    if (!stageUtterance(text, new Date(), presetCategory)) finishLock.current = false;
     goReview(text);
+  };
+
+  const startRecording = () => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    if (!speechRecognitionSupported()) return;
+    wantSpeech.current = true;
+    finishLock.current = false;
+    setRun((value) => value + 1);
   };
 
   const updateEntry = (key: string, patch: Partial<DraftEntry>) => {
     setEntries((current) => current.map((entry) => (entry.key === key ? { ...entry, ...patch } : entry)));
+  };
+
+  const keepEditing = () => {
+    commitOrDrop("retry", entries);
+    const text = entries[0]?.transcript ?? typed;
+    finishLock.current = false;
+    commitLock.current = false;
+    setCommitLocked(false);
+    setEntries([]);
+    setPicking(null);
+    setTyped(text);
+    setCapture("type");
+    setPhase("capture");
+  };
+
+  const confirmEntries = () => {
+    if (commitLock.current) return;
+    const expenses = commitOrDrop("confirm", entries);
+    if (!expenses) return;
+    commitLock.current = true;
+    setCommitLocked(true);
+    onCommit(
+      expenses.map((expense, index) => ({
+        ...expense,
+        createdAt: createdAtFromDay(entries[index]?.day ?? "", recordedAt),
+      })),
+      recordedAt,
+    );
   };
 
   useEffect(() => {
@@ -172,7 +229,6 @@ export function VoiceSheet({
     setTyped("");
     setEntries([]);
     setPicking(null);
-    setHint(LISTEN_HINT);
 
     let cancelled = false;
     let watchdog = 0;
@@ -184,23 +240,19 @@ export function VoiceSheet({
       stopMic();
     };
 
-    if (presetCategory) {
+    const speak = wantSpeech.current;
+    wantSpeech.current = false;
+    if (presetCategory && !speak) {
       setCapture("type");
-      setHint("输入一句话，比如「午饭三十八」");
       return cleanup;
     }
 
     const offline = typeof navigator !== "undefined" && navigator.onLine === false;
     if (offline || !speechRecognitionSupported()) {
       setCapture("type");
-      setHint(
-        offline
-          ? "当前离线，输入一句话，比如「午饭三十八」"
-          : "这台设备不能语音识别，输入一句话，比如「午饭三十八」",
-      );
       return cleanup;
     }
-    setCapture("speech");
+    setCapture("listen");
     listeningRef.current = true;
 
     void (async () => {
@@ -209,24 +261,18 @@ export function VoiceSheet({
       const access = await prepareMicrophone();
       if (cancelled || session.current !== id) return;
       if (access === "denied") {
-        useTyping("", listenFallbackHint("not-allowed"));
+        switchToType("");
         return;
       }
       watchdog = window.setTimeout(() => {
         if (cancelled || session.current !== id || !listeningRef.current) return;
         if (transcriptRef.current.trim()) return;
-        useTyping("", EMPTY_HINT);
+        showFailed();
       }, SHEET_WATCHDOG_MS);
       const mode = await captureMode();
       if (cancelled || session.current !== id) return;
       if (mode === "type") {
-        const nowOffline = typeof navigator !== "undefined" && navigator.onLine === false;
-        useTyping(
-          "",
-          nowOffline
-            ? "当前离线，输入一句话，比如「午饭三十八」"
-            : "这台设备不能语音识别，输入一句话，比如「午饭三十八」",
-        );
+        switchToType("");
         return;
       }
       const sessionHandle = startListening(mode, {
@@ -234,16 +280,20 @@ export function VoiceSheet({
           if (session.current !== id) return;
           transcriptRef.current = text;
           setTranscript(text);
-          if (text.trim()) setHint(LISTEN_HINT);
+          if (text.trim()) setCapture("listen");
         },
         onNotice: (notice) => {
           if (session.current !== id || notice !== "quiet") return;
           if (transcriptRef.current.trim()) return;
-          setHint(QUIET_LISTEN_HINT);
+          setCapture("quiet");
         },
         onError: (code) => {
           if (session.current !== id || code === "aborted") return;
-          useTyping(transcriptRef.current, listenFallbackHint(code));
+          if (code === "not-allowed" || code === "service-not-allowed" || code === "audio-capture") {
+            switchToType(transcriptRef.current);
+            return;
+          }
+          showFailed();
         },
       });
       if (cancelled || session.current !== id) {
@@ -251,7 +301,7 @@ export function VoiceSheet({
         return;
       }
       if (!sessionHandle) {
-        useTyping("", listenFallbackHint("start-failed"));
+        showFailed();
         return;
       }
       listenRef.current = sessionHandle;
@@ -262,13 +312,20 @@ export function VoiceSheet({
 
   useEffect(() => {
     if (!open) return;
-    const onOffline = () => useTyping(transcriptRef.current, "当前离线，输入一句话，比如「午饭三十八」");
+    const onOffline = () => {
+      if (!listeningRef.current) return;
+      switchToType(transcriptRef.current);
+    };
     window.addEventListener("offline", onOffline);
     return () => window.removeEventListener("offline", onOffline);
   }, [open]);
 
   const motionProps = reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: EASE };
-  const ready = commitOrDrop("confirm", entries);
+  const ready = commitOrDrop("confirm", entries) !== null && !commitLocked;
+  const listening = capture === "listen" || capture === "quiet";
+  const title =
+    capture === "quiet" ? VOICE_COPY.quietTitle : capture === "failed" ? VOICE_COPY.failTitle : capture === "type" ? VOICE_COPY.typeTitle : VOICE_COPY.listenTitle;
+  const subtitle = capture === "quiet" ? VOICE_COPY.quietSubtitle : capture === "failed" ? VOICE_COPY.failSubtitle : capture === "listen" ? VOICE_COPY.listenSubtitle : "";
 
   return (
     <AnimatePresence>
@@ -289,9 +346,7 @@ export function VoiceSheet({
           className="sheet glass"
           role="dialog"
           aria-modal="true"
-          aria-label={
-            phase === "review" ? "确认这几笔" : capture === "type" ? "手动输入" : hint === QUIET_LISTEN_HINT ? "没听到" : "正在聆听"
-          }
+          aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
@@ -299,7 +354,7 @@ export function VoiceSheet({
           onClick={(event) => event.stopPropagation()}
         >
           <div className="grab" />
-          {phase === "review" && entries.length > 0 ? (
+          {phase === "review" ? (
             <ConfirmEntries
               entries={entries}
               picking={picking}
@@ -311,70 +366,42 @@ export function VoiceSheet({
               }}
               recordedAt={recordedAt}
               onClose={requestClose}
-              onAgain={() => {
-                commitOrDrop("retry", entries);
-                setEntries([]);
-                setRun((value) => value + 1);
-              }}
-              canSave={ready !== null && !commitLocked}
-              onCommit={() => {
-                if (commitLock.current) return;
-                const expenses = commitOrDrop("confirm", entries);
-                if (!expenses) return;
-                commitLock.current = true;
-                setCommitLocked(true);
-                onCommit(expenses, recordedAt);
-              }}
+              onKeepEditing={keepEditing}
+              canSave={ready}
+              onCommit={confirmEntries}
             />
-          ) : phase === "review" ? (
-            <>
-              <div className="shead">
-                <h2>确认这几笔</h2>
-                <button type="button" className="x" aria-label="关闭" onClick={requestClose}>
-                  <CloseIcon />
-                </button>
-              </div>
-              <p className="hint">没有要记的账。</p>
-              <button
-                type="button"
-                className="again"
-                onClick={() => {
-                  commitOrDrop("retry", entries);
-                  setRun((value) => value + 1);
-                }}
-              >
-                重新说一遍
-              </button>
-            </>
           ) : (
             <>
               <div className="shead">
-                <div className="listen">
-                  {capture === "speech" ? <span className="dot" /> : null}
-                  {capture === "speech" ? (hint === QUIET_LISTEN_HINT ? "没听到…" : "正在聆听…") : "手动输入"}
-                </div>
+                <h2>{title}</h2>
                 <button type="button" className="x" aria-label="关闭" onClick={requestClose}>
                   <CloseIcon />
                 </button>
               </div>
-              {capture === "speech" ? (
+              {subtitle ? (
+                <div className="hint" role="status" aria-live="polite">
+                  {subtitle}
+                </div>
+              ) : null}
+              {listening ? (
                 <div aria-live="polite">
                   <LiveTranscript text={transcript} />
                 </div>
-              ) : (
+              ) : null}
+              {capture === "type" ? (
                 <input
                   className="typebox"
                   value={typed}
-                  placeholder="午饭三十八"
+                  placeholder={VOICE_COPY.typePlaceholder}
                   autoFocus
-                  aria-label="输入用途和金额"
+                  aria-label={VOICE_COPY.typeTitle}
                   onChange={(event) => setTyped(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") finish();
+                    if (event.key === "Enter" && typed.trim()) finish();
                   }}
                 />
-              )}
-              {presetCategory ? (
+              ) : null}
+              {presetCategory && capture === "type" ? (
                 <div className="preset">
                   <span className="chip" style={categoryChipStyle(presetCategory)}>
                     <Glyph name={categoryGlyph(presetCategory)} size={16} strokeWidth={2} />
@@ -382,34 +409,35 @@ export function VoiceSheet({
                   </span>
                 </div>
               ) : null}
-              <div className="hint" role="status" aria-live="polite">
-                {hint}
-              </div>
-              {capture === "speech" ? (
-                <div className={cn("wave", !reduceMotion && "live")} aria-hidden="true">
-                  {WAVE.map((height, index) => (
-                    <i
-                      key={index}
-                      style={{
-                        height,
-                        opacity: index > 22 ? 0.35 : 0.85,
-                        animationDelay: `${(index % 7) * 0.12}s`,
-                      }}
-                    />
-                  ))}
+              {listening ? <StaticWave /> : null}
+              {capture === "failed" ? (
+                <button type="button" className="go" onClick={() => switchToType(transcriptRef.current)}>
+                  {VOICE_COPY.typeInstead}
+                </button>
+              ) : null}
+              {listening ? (
+                <div className="ctrl pair">
+                  <button type="button" className="tbtn l" onClick={() => switchToType(transcriptRef.current)}>
+                    {VOICE_COPY.typeInstead}
+                  </button>
+                  <button type="button" className="tbtn r" onClick={finish}>
+                    {VOICE_COPY.done}
+                  </button>
                 </div>
               ) : null}
-              <div className="ctrl">
-                <button type="button" className="tbtn l" onClick={requestClose}>
-                  取消
-                </button>
-                <button type="button" className="stop" aria-label="停止" onClick={finish}>
-                  <i />
-                </button>
-                <button type="button" className="tbtn r" onClick={finish}>
-                  完成
-                </button>
-              </div>
+              {capture === "type" ? (
+                <div className="ctrl">
+                  <button type="button" className="tbtn l" onClick={requestClose}>
+                    {VOICE_COPY.cancel}
+                  </button>
+                  <button type="button" className="rec" aria-label={VOICE_COPY.startMic} onClick={startRecording}>
+                    <MicIcon />
+                  </button>
+                  <button type="button" className="tbtn r" onClick={finish} disabled={!typed.trim()}>
+                    {VOICE_COPY.typeDone}
+                  </button>
+                </div>
+              ) : null}
             </>
           )}
         </motion.section>
@@ -431,7 +459,7 @@ function CategoryPicker({
 }) {
   const subs = SUBCATEGORIES[category];
   return (
-    <div className="picker" role="group" aria-label="分类">
+    <div className="picker" role="group" aria-label={VOICE_COPY.category}>
       <span className="picker-lab">大类</span>
       {CATEGORY_ORDER.map((id) => (
         <button key={id} type="button" className={cn(id === category && "on")} onClick={() => onCategory(id)}>
@@ -452,6 +480,80 @@ function CategoryPicker({
   );
 }
 
+function EntryFields({
+  entry,
+  openPicker,
+  onTogglePicker,
+  onChange,
+  recordedAt,
+  onRemove,
+}: {
+  entry: DraftEntry;
+  openPicker: boolean;
+  onTogglePicker: () => void;
+  onChange: (patch: Partial<DraftEntry>) => void;
+  recordedAt: Date;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="entry-fields">
+      <label className="field">
+        <span>{VOICE_COPY.amount}</span>
+        <input
+          inputMode="decimal"
+          aria-label={VOICE_COPY.amount}
+          value={entry.amount}
+          onChange={(event) => onChange({ amount: event.target.value })}
+        />
+      </label>
+      <div className="field">
+        <span>{VOICE_COPY.category}</span>
+        <button type="button" className="esub" onClick={onTogglePicker}>
+          {categoryDetail(entry.category, entry.subcategory)}
+        </button>
+        {openPicker ? (
+          <CategoryPicker
+            category={entry.category}
+            subcategory={entry.subcategory}
+            onCategory={(category) =>
+              onChange({
+                category,
+                subcategory: category === entry.category ? entry.subcategory : defaultPick(category, recordedAt),
+              })
+            }
+            onSubcategory={(subcategory) => {
+              onChange({ subcategory });
+              onTogglePicker();
+            }}
+          />
+        ) : null}
+      </div>
+      <label className="field">
+        <span>{VOICE_COPY.date}</span>
+        <input
+          type="date"
+          aria-label={VOICE_COPY.date}
+          value={entry.day}
+          onChange={(event) => onChange({ day: event.target.value })}
+        />
+      </label>
+      <label className="field">
+        <span>{VOICE_COPY.note}</span>
+        <input
+          aria-label={VOICE_COPY.note}
+          value={entry.title}
+          onChange={(event) => onChange({ title: event.target.value })}
+        />
+      </label>
+      {onRemove ? (
+        <button type="button" className="edel" aria-label={`删除${entry.title || VOICE_COPY.note}`} onClick={onRemove}>
+          ×
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ConfirmEntries({
   entries,
   picking,
@@ -460,7 +562,7 @@ function ConfirmEntries({
   onRemove,
   recordedAt,
   onClose,
-  onAgain,
+  onKeepEditing,
   canSave,
   onCommit,
 }: {
@@ -471,96 +573,55 @@ function ConfirmEntries({
   onRemove: (key: string) => void;
   recordedAt: Date;
   onClose: () => void;
-  onAgain: () => void;
+  onKeepEditing: () => void;
   canSave: boolean;
   onCommit: () => void;
 }) {
-  const total = sumEditable(entries);
-  const count = entries.length;
+  const many = entries.length !== 1;
+  const unsure = entries.some((entry) => entry.confidence === "low");
 
   return (
     <>
       <div className="shead">
-        <h2>确认这几笔</h2>
+        <h2>{VOICE_COPY.confirmTitle}</h2>
         <button type="button" className="x" aria-label="关闭" onClick={onClose}>
           <CloseIcon />
         </button>
       </div>
       <div className="sheet-body">
-        <div className="heard">听到：「{entries[0]?.transcript}」</div>
+        <p className="hint confirm-sub">{confirmSubtitle(entries.length)}</p>
+        {unsure ? <p className="hint warn">{VOICE_COPY.lowConfidence}</p> : null}
+        {many ? <p className="count-line">{confirmCount(entries.length)}</p> : null}
         <div className="erows">
-          {entries.map((entry) => {
-            const tone = categoryChipStyle(entry.category);
-            return (
-              <div className="erow" key={entry.key}>
-                <div className="erow-main">
-                  <span className="ic" style={{ background: tone.background, color: tone.color }}>
-                    <Glyph name={categoryGlyph(entry.category)} size={18} />
-                  </span>
-                  <span className="meta">
-                    <input
-                      className="etitle"
-                      aria-label={`${entry.title || "备注"}的备注`}
-                      value={entry.title}
-                      onChange={(event) => onChange(entry.key, { title: event.target.value })}
-                    />
-                    <button type="button" className="esub" onClick={() => onPick(entry.key)}>
-                      {categoryDetail(entry.category, entry.subcategory)}
-                    </button>
-                  </span>
-                  <label className="eamt num">
-                    <span>¥</span>
-                    <input
-                      inputMode="decimal"
-                      aria-label={`${entry.title || "这笔"}的金额`}
-                      value={entry.amount}
-                      style={{ width: `calc(${Math.max(entry.amount.length, 1)}ch + 2px)` }}
-                      onChange={(event) => onChange(entry.key, { amount: event.target.value })}
-                    />
-                  </label>
-                  <button type="button" className="edel" aria-label={`删除${entry.title || "这笔"}`} onClick={() => onRemove(entry.key)}>
-                    ×
-                  </button>
-                </div>
-                {picking === entry.key && (
-                  <CategoryPicker
-                    category={entry.category}
-                    subcategory={entry.subcategory}
-                    onCategory={(category) =>
-                      onChange(entry.key, {
-                        category,
-                        subcategory: category === entry.category ? entry.subcategory : defaultPick(category, recordedAt),
-                      })
-                    }
-                    onSubcategory={(subcategory) => {
-                      onChange(entry.key, { subcategory });
-                      onPick(entry.key);
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
+          {entries.map((entry) => (
+            <div className={cn("erow", many && "card")} key={entry.key}>
+              <EntryFields
+                entry={entry}
+                openPicker={!many || picking === entry.key}
+                onTogglePicker={() => onPick(entry.key)}
+                onChange={(patch) => onChange(entry.key, patch)}
+                recordedAt={recordedAt}
+                onRemove={many ? () => onRemove(entry.key) : undefined}
+              />
+            </div>
+          ))}
         </div>
       </div>
       <div className="sheet-foot">
-        <div className="batch-total">
-          <span className="lab">合计</span>
-          <span className="sum num">
-            <small>¥</small>
-            {formatYuan(total)}
-          </span>
-        </div>
-        <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
-          确认记入 {count} 笔
-        </button>
-        <button type="button" className="again" onClick={onAgain}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <rect x="9" y="3" width="6" height="11" rx="3" />
-            <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
-          </svg>
-          重新说一遍
-        </button>
+        {many ? (
+          <>
+            <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
+              {VOICE_COPY.confirmAll}
+            </button>
+            <button type="button" className="again" onClick={onKeepEditing}>
+              {VOICE_COPY.keepEditing}
+            </button>
+          </>
+        ) : (
+          <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
+            {VOICE_COPY.confirmOne}
+          </button>
+        )}
       </div>
     </>
   );
