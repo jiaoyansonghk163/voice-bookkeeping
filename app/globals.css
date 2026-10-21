@@ -95,7 +95,10 @@ button {
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: #f8f9fc;
+  background:
+    radial-gradient(420px 320px at 110% 88%, rgba(255, 186, 196, 0.45), transparent 70%),
+    radial-gradient(360px 260px at -10% 100%, rgba(186, 230, 214, 0.4), transparent 72%),
+    #f8f9fc;
 }
 
 .glass {
@@ -681,20 +684,35 @@ header.top.scrolled {
 
 .tab {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 6;
-  height: calc(88px + env(safe-area-inset-bottom));
-  border-radius: 0;
+  height: 72px;
+  border-radius: 28px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  align-items: start;
-  padding: 10px 16px env(safe-area-inset-bottom);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid #e8ecf4;
-  box-shadow: none;
+  align-items: center;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.48);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 4px 16px rgba(30, 40, 70, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tab {
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      0 8px 24px rgba(30, 40, 70, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
 }
 
 .ti {
@@ -725,9 +743,9 @@ header.top.scrolled {
 
 .ti i {
   display: block;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
   background: #eef1f8;
   transition:
     background 160ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -746,7 +764,7 @@ header.top.scrolled {
 .mic-anchor {
   position: absolute;
   left: 50%;
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  bottom: calc(56px + env(safe-area-inset-bottom));
   z-index: 7;
   width: 64px;
   height: 64px;
@@ -758,16 +776,16 @@ header.top.scrolled {
   width: 64px;
   height: 64px;
   border-radius: 32px;
-  background: linear-gradient(145deg, #5b7cff 6%, #4c6fff 94%);
+  background: #4c6fff;
   display: grid;
   place-items: center;
   color: #fff;
-  box-shadow: 0 10px 14px rgba(76, 111, 255, 0.4);
+  box-shadow: 0 8px 22px rgba(76, 111, 255, 0.28);
 }
 
 .mic.stop {
-  background: linear-gradient(145deg, #ff6b5a 6%, #e85d4c 94%);
-  box-shadow: 0 10px 14px rgba(232, 93, 76, 0.4);
+  background: #f25c4c;
+  box-shadow: 0 8px 22px rgba(242, 92, 76, 0.28);
 }
 
 .mic.mini {
@@ -1689,7 +1707,10 @@ header.top.scrolled {
   background: #fff;
   border-radius: 18px;
   padding: 16px;
-  min-height: 83px;
+  min-height: 82px;
+  box-shadow: 0 8px 24px rgba(30, 40, 70, 0.05);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .kpi-card span {
@@ -1732,7 +1753,9 @@ header.top.scrolled {
   padding: 16px 18px;
   border-radius: 20px;
   background: #fff;
-  box-shadow: 0 1px 1px rgba(20, 30, 60, 0.04);
+  box-shadow: 0 8px 24px rgba(30, 40, 70, 0.05);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   text-align: left;
   color: inherit;
   touch-action: pan-y;
@@ -1796,7 +1819,9 @@ header.top.scrolled {
 .confirm-card {
   background: #fff;
   border-radius: 20px;
-  box-shadow: 0 1px 1px rgba(20, 30, 60, 0.04);
+  box-shadow: 0 8px 24px rgba(30, 40, 70, 0.05);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .month-card {
@@ -1887,6 +1912,24 @@ header.top.scrolled {
   background: #f8f9fc;
 }
 
+.stage.crystal {
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 16px rgba(30, 40, 70, 0.05);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .stage.crystal {
+    background: #f8f9fc;
+    border-color: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .slot {
   position: relative;
   height: 100%;
@@ -1915,21 +1958,23 @@ header.top.scrolled {
 
 .halo {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 128px;
+  height: 128px;
   margin-bottom: 28px;
-  border-radius: 60px;
-  background: rgba(76, 111, 255, 0.12);
+  border-radius: 50%;
+  background: none;
   display: grid;
   place-items: center;
 }
 
 .halo-ring {
   position: absolute;
-  width: 88px;
-  height: 88px;
+  width: 156px;
+  height: 156px;
   border-radius: 50%;
-  border: 1.5px solid #4c6fff;
+  border: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.72) 38%, rgba(76, 111, 255, 0.16) 62%, transparent 74%);
+  filter: blur(6px);
   opacity: 0.25;
 }
 
@@ -1941,6 +1986,7 @@ header.top.scrolled {
   background: #4c6fff;
   display: grid;
   place-items: center;
+  box-shadow: 0 8px 22px rgba(76, 111, 255, 0.28);
 }
 
 .listen-title {
@@ -2061,20 +2107,26 @@ header.top.scrolled {
   display: grid;
   place-items: center;
   color: #fff;
-  background: linear-gradient(145deg, #5b7cff 6%, #4c6fff 94%);
-  box-shadow: 0 10px 14px rgba(76, 111, 255, 0.4);
+  background: #4c6fff;
+  box-shadow: 0 8px 22px rgba(76, 111, 255, 0.28);
 }
 
 .warn-bar {
+  display: flex;
+  align-items: center;
   height: 58px;
   margin: 20px 0 0;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 16px;
   overflow: hidden;
-  border-radius: 12px;
-  background: #fff6e8;
-  color: #b86a00;
+  border: 0;
+  border-left: 3px solid #e39b2b;
+  border-radius: 0;
+  background: transparent;
+  color: #c47d12;
   font-size: 13px;
   line-height: 1.45;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .type-lift {

@@ -398,7 +398,7 @@ export function VoiceSheet({
       {open ? (
         <motion.section
           key="voice-sheet"
-          className="stage"
+          className={cn("stage", pane !== "review" && "crystal")}
           role="dialog"
           aria-modal="true"
           aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}
