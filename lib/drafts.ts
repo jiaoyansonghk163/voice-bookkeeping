@@ -9,6 +9,7 @@ export interface EditableDraft {
   subcategory: string;
   title: string;
   transcript: string;
+  source: string;
   confidence: "high" | "low";
   day: string;
 }
@@ -50,6 +51,7 @@ export function stageUtterance(text: string, now = new Date(), preset?: Category
       subcategory: preset ? defaultPick(preset, now) : entry.subcategory,
       title: entry.title,
       transcript: parsed.transcript,
+      source: entry.source?.trim() || parsed.transcript,
       confidence: entry.confidence === "low" ? "low" : "high",
       day: dayString(now),
     })),

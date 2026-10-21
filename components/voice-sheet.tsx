@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Glyph, categoryChipStyle, categoryGlyph, categoryName } from "@/components/glyphs";
+import { MicButton } from "@/components/bottom-nav";
 import {
   captureMode,
   prepareMicrophone,
@@ -10,14 +9,13 @@ import {
   startListening,
   type ListenSession,
 } from "@/lib/asr";
-import { CATEGORY_ORDER, SUBCATEGORIES, categoryDetail, defaultPick } from "@/lib/categories";
+import { CATEGORY_ORDER, CATEGORIES, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { commitOrDrop, createdAtFromDay, stageUtterance, type EditableDraft } from "@/lib/drafts";
-import { VOICE_COPY, confirmCount, confirmSubtitle } from "@/lib/voice-copy";
+import { VOICE_COPY, sourceLine } from "@/lib/voice-copy";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
 
-const EASE = [0.22, 1, 0.36, 1] as const;
-const LOW_BARS = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6];
+const WAVE = [8, 14, 10, 18, 12, 16, 9];
 /** Last resort if recognition never starts and never errors. The session has its own shorter timer. */
 const SHEET_WATCHDOG_MS = 15_000;
 
@@ -27,37 +25,11 @@ interface DraftEntry extends EditableDraft {
   key: string;
 }
 
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-      <path d="M6 6l12 12M18 6L6 18" />
-    </svg>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
-    </svg>
-  );
-}
-
-function LiveTranscript({ text }: { text: string }) {
-  return (
-    <div className="transcript">
-      {text}
-      <span className="cur" />
-    </div>
-  );
-}
-
 function StaticWave() {
   return (
     <div className="wave" aria-hidden="true">
-      {LOW_BARS.map((height, index) => (
-        <i key={index} style={{ height, opacity: 0.45 }} />
+      {WAVE.map((height, index) => (
+        <i key={index} style={{ height }} />
       ))}
     </div>
   );
@@ -74,7 +46,6 @@ export function VoiceSheet({
   onCommit: (expenses: ParsedExpense[], at: Date) => void;
   presetCategory?: CategoryId | null;
 }) {
-  const reduceMotion = useReducedMotion() === true;
   const session = useRef(0);
   const listenRef = useRef<ListenSession | null>(null);
   const listeningRef = useRef(false);
@@ -173,21 +144,16 @@ export function VoiceSheet({
     setRun((value) => value + 1);
   };
 
-  const updateEntry = (key: string, patch: Partial<DraftEntry>) => {
-    setEntries((current) => current.map((entry) => (entry.key === key ? { ...entry, ...patch } : entry)));
+  const clearTyped = () => {
+    if (!typed.trim()) {
+      requestClose();
+      return;
+    }
+    setTyped("");
   };
 
-  const keepEditing = () => {
-    commitOrDrop("retry", entries);
-    const text = entries[0]?.transcript ?? typed;
-    finishLock.current = false;
-    commitLock.current = false;
-    setCommitLocked(false);
-    setEntries([]);
-    setPicking(null);
-    setTyped(text);
-    setCapture("type");
-    setPhase("capture");
+  const updateEntry = (key: string, patch: Partial<DraftEntry>) => {
+    setEntries((current) => current.map((entry) => (entry.key === key ? { ...entry, ...patch } : entry)));
   };
 
   const confirmEntries = () => {
@@ -320,7 +286,8 @@ export function VoiceSheet({
     return () => window.removeEventListener("offline", onOffline);
   }, [open]);
 
-  const motionProps = reduceMotion ? { duration: 0.01 } : { duration: 0.3, ease: EASE };
+  if (!open) return null;
+
   const ready = commitOrDrop("confirm", entries) !== null && !commitLocked;
   const listening = capture === "listen" || capture === "quiet";
   const title =
@@ -328,228 +295,112 @@ export function VoiceSheet({
   const subtitle = capture === "quiet" ? VOICE_COPY.quietSubtitle : capture === "failed" ? VOICE_COPY.failSubtitle : capture === "listen" ? VOICE_COPY.listenSubtitle : "";
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key="dim"
-          className="dim"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={reduceMotion ? { duration: 0.01 } : { duration: 0.25, ease: "easeOut" }}
-          onClick={requestClose}
+    <section className={cn("stage", listening && "listen")} role="dialog" aria-modal="true" aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}>
+      {phase === "review" ? (
+        <ConfirmEntries
+          entries={entries}
+          picking={picking}
+          onPick={(key) => setPicking((value) => (value === key ? null : key))}
+          onChange={updateEntry}
+          onRemove={(key) => {
+            setEntries((current) => current.filter((entry) => entry.key !== key));
+            setPicking((value) => (value === key ? null : value));
+          }}
+          canSave={ready}
+          onCancel={requestClose}
+          onCommit={confirmEntries}
         />
+      ) : listening ? (
+        <ListenStage title={title} subtitle={subtitle} transcript={transcript} onType={() => switchToType(transcriptRef.current)} onFinish={finish} />
+      ) : capture === "failed" ? (
+        <div className="listen-col">
+          <h1 className="listen-title">{VOICE_COPY.failTitle}</h1>
+          <p className="listen-sub">{VOICE_COPY.failSubtitle}</p>
+          <button type="button" className="primary wide" onClick={() => switchToType(transcriptRef.current)}>
+            {VOICE_COPY.typeInstead}
+          </button>
+        </div>
+      ) : (
+        <TypeStage typed={typed} onChange={setTyped} onClear={clearTyped} onFinish={finish} onRecord={startRecording} />
       )}
-      {open && (
-        <motion.section
-          key="sheet"
-          className="sheet glass"
-          role="dialog"
-          aria-modal="true"
-          aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 40, opacity: 0 }}
-          transition={motionProps}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="grab" />
-          {phase === "review" ? (
-            <ConfirmEntries
-              entries={entries}
-              picking={picking}
-              onPick={(key) => setPicking((value) => (value === key ? null : key))}
-              onChange={updateEntry}
-              onRemove={(key) => {
-                setEntries((current) => current.filter((entry) => entry.key !== key));
-                setPicking((value) => (value === key ? null : value));
-              }}
-              recordedAt={recordedAt}
-              onClose={requestClose}
-              onKeepEditing={keepEditing}
-              canSave={ready}
-              onCommit={confirmEntries}
-            />
-          ) : (
-            <>
-              <div className="shead">
-                <h2>{title}</h2>
-                <button type="button" className="x" aria-label="关闭" onClick={requestClose}>
-                  <CloseIcon />
-                </button>
-              </div>
-              {subtitle ? (
-                <div className="hint" role="status" aria-live="polite">
-                  {subtitle}
-                </div>
-              ) : null}
-              {listening ? (
-                <div aria-live="polite">
-                  <LiveTranscript text={transcript} />
-                </div>
-              ) : null}
-              {capture === "type" ? (
-                <input
-                  className="typebox"
-                  value={typed}
-                  placeholder={VOICE_COPY.typePlaceholder}
-                  autoFocus
-                  aria-label={VOICE_COPY.typeTitle}
-                  onChange={(event) => setTyped(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && typed.trim()) finish();
-                  }}
-                />
-              ) : null}
-              {presetCategory && capture === "type" ? (
-                <div className="preset">
-                  <span className="chip" style={categoryChipStyle(presetCategory)}>
-                    <Glyph name={categoryGlyph(presetCategory)} size={16} strokeWidth={2} />
-                    {categoryName(presetCategory)}
-                  </span>
-                </div>
-              ) : null}
-              {listening ? <StaticWave /> : null}
-              {capture === "failed" ? (
-                <button type="button" className="go" onClick={() => switchToType(transcriptRef.current)}>
-                  {VOICE_COPY.typeInstead}
-                </button>
-              ) : null}
-              {listening ? (
-                <div className="ctrl pair">
-                  <button type="button" className="tbtn l" onClick={() => switchToType(transcriptRef.current)}>
-                    {VOICE_COPY.typeInstead}
-                  </button>
-                  <button type="button" className="tbtn r" onClick={finish}>
-                    {VOICE_COPY.done}
-                  </button>
-                </div>
-              ) : null}
-              {capture === "type" ? (
-                <div className="ctrl">
-                  <button type="button" className="tbtn l" onClick={requestClose}>
-                    {VOICE_COPY.cancel}
-                  </button>
-                  <button type="button" className="rec" aria-label={VOICE_COPY.startMic} onClick={startRecording}>
-                    <MicIcon />
-                  </button>
-                  <button type="button" className="tbtn r" onClick={finish} disabled={!typed.trim()}>
-                    {VOICE_COPY.typeDone}
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </motion.section>
-      )}
-    </AnimatePresence>
+    </section>
   );
 }
 
-function CategoryPicker({
-  category,
-  subcategory,
-  onCategory,
-  onSubcategory,
+function ListenStage({
+  title,
+  subtitle,
+  transcript,
+  onType,
+  onFinish,
 }: {
-  category: CategoryId;
-  subcategory: string;
-  onCategory: (category: CategoryId) => void;
-  onSubcategory: (subcategory: string) => void;
-}) {
-  const subs = SUBCATEGORIES[category];
-  return (
-    <div className="picker" role="group" aria-label={VOICE_COPY.category}>
-      <span className="picker-lab">大类</span>
-      {CATEGORY_ORDER.map((id) => (
-        <button key={id} type="button" className={cn(id === category && "on")} onClick={() => onCategory(id)}>
-          {categoryName(id)}
-        </button>
-      ))}
-      {subs.length > 0 ? (
-        <>
-          <span className="picker-lab">小类</span>
-          {subs.map((name) => (
-            <button key={name} type="button" className={cn(name === subcategory && "on")} onClick={() => onSubcategory(name)}>
-              {name}
-            </button>
-          ))}
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function EntryFields({
-  entry,
-  openPicker,
-  onTogglePicker,
-  onChange,
-  recordedAt,
-  onRemove,
-}: {
-  entry: DraftEntry;
-  openPicker: boolean;
-  onTogglePicker: () => void;
-  onChange: (patch: Partial<DraftEntry>) => void;
-  recordedAt: Date;
-  onRemove?: () => void;
+  title: string;
+  subtitle: string;
+  transcript: string;
+  onType: () => void;
+  onFinish: () => void;
 }) {
   return (
-    <div className="entry-fields">
-      <label className="field">
-        <span>{VOICE_COPY.amount}</span>
-        <input
-          inputMode="decimal"
-          aria-label={VOICE_COPY.amount}
-          value={entry.amount}
-          onChange={(event) => onChange({ amount: event.target.value })}
-        />
-      </label>
-      <div className="field">
-        <span>{VOICE_COPY.category}</span>
-        <button type="button" className="esub" onClick={onTogglePicker}>
-          {categoryDetail(entry.category, entry.subcategory)}
+    <>
+      <div className="listen-col">
+        <div className="halo" aria-hidden="true">
+          <span className="halo-core">
+            <MicMark />
+          </span>
+        </div>
+        <h1 className="listen-title">{title}</h1>
+        {transcript.trim() ? <p className="heard">{transcript}</p> : null}
+        <StaticWave />
+        <p className="listen-sub">{subtitle}</p>
+        <button type="button" className="text-link" onClick={onType}>
+          {VOICE_COPY.typeInstead}
         </button>
-        {openPicker ? (
-          <CategoryPicker
-            category={entry.category}
-            subcategory={entry.subcategory}
-            onCategory={(category) =>
-              onChange({
-                category,
-                subcategory: category === entry.category ? entry.subcategory : defaultPick(category, recordedAt),
-              })
-            }
-            onSubcategory={(subcategory) => {
-              onChange({ subcategory });
-              onTogglePicker();
-            }}
-          />
-        ) : null}
       </div>
-      <label className="field">
-        <span>{VOICE_COPY.date}</span>
-        <input
-          type="date"
-          aria-label={VOICE_COPY.date}
-          value={entry.day}
-          onChange={(event) => onChange({ day: event.target.value })}
-        />
-      </label>
-      <label className="field">
-        <span>{VOICE_COPY.note}</span>
-        <input
-          aria-label={VOICE_COPY.note}
-          value={entry.title}
-          onChange={(event) => onChange({ title: event.target.value })}
-        />
-      </label>
-      {onRemove ? (
-        <button type="button" className="edel" aria-label={`删除${entry.title || VOICE_COPY.note}`} onClick={onRemove}>
-          ×
+      <MicButton stop label={VOICE_COPY.done} onClick={onFinish} />
+    </>
+  );
+}
+
+function TypeStage({
+  typed,
+  onChange,
+  onClear,
+  onFinish,
+  onRecord,
+}: {
+  typed: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+  onFinish: () => void;
+  onRecord: () => void;
+}) {
+  const empty = !typed.trim();
+  return (
+    <div className="type-page">
+      <h1>{VOICE_COPY.typeTitle}</h1>
+      <p className="page-sub">{VOICE_COPY.typeHint}</p>
+      <textarea
+        className="typebox"
+        value={typed}
+        placeholder={VOICE_COPY.typePlaceholder}
+        aria-label={VOICE_COPY.typeTitle}
+        rows={3}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <div className="pair">
+        <button type="button" className="ghost" onClick={onClear}>
+          {VOICE_COPY.clear}
         </button>
-      ) : null}
+        <button type="button" className="primary" onClick={onFinish} disabled={empty}>
+          {VOICE_COPY.typeDone}
+        </button>
+      </div>
+      <button type="button" className="record" aria-label={VOICE_COPY.startMic} onClick={onRecord}>
+        <span className="face" aria-hidden="true">
+          <MicMark />
+        </span>
+        {VOICE_COPY.startMic}
+      </button>
     </div>
   );
 }
@@ -560,10 +411,8 @@ function ConfirmEntries({
   onPick,
   onChange,
   onRemove,
-  recordedAt,
-  onClose,
-  onKeepEditing,
   canSave,
+  onCancel,
   onCommit,
 }: {
   entries: DraftEntry[];
@@ -571,58 +420,87 @@ function ConfirmEntries({
   onPick: (key: string) => void;
   onChange: (key: string, patch: Partial<DraftEntry>) => void;
   onRemove: (key: string) => void;
-  recordedAt: Date;
-  onClose: () => void;
-  onKeepEditing: () => void;
   canSave: boolean;
+  onCancel: () => void;
   onCommit: () => void;
 }) {
-  const many = entries.length !== 1;
+  const many = entries.length > 1;
   const unsure = entries.some((entry) => entry.confidence === "low");
 
   return (
-    <>
-      <div className="shead">
-        <h2>{VOICE_COPY.confirmTitle}</h2>
-        <button type="button" className="x" aria-label="关闭" onClick={onClose}>
-          <CloseIcon />
-        </button>
-      </div>
-      <div className="sheet-body">
-        <p className="hint confirm-sub">{confirmSubtitle(entries.length)}</p>
-        {unsure ? <p className="hint warn">{VOICE_COPY.lowConfidence}</p> : null}
-        {many ? <p className="count-line">{confirmCount(entries.length)}</p> : null}
-        <div className="erows">
-          {entries.map((entry) => (
-            <div className={cn("erow", many && "card")} key={entry.key}>
-              <EntryFields
-                entry={entry}
-                openPicker={!many || picking === entry.key}
-                onTogglePicker={() => onPick(entry.key)}
-                onChange={(patch) => onChange(entry.key, patch)}
-                recordedAt={recordedAt}
-                onRemove={many ? () => onRemove(entry.key) : undefined}
+    <div className="confirm-page">
+      <h1>{VOICE_COPY.confirmTitle}</h1>
+      <p className="page-sub">{VOICE_COPY.confirmHint}</p>
+      {unsure ? <p className="warn-bar">{VOICE_COPY.lowConfidence}</p> : null}
+      <div className="confirm-list">
+        {entries.map((entry) => (
+          <article className="confirm-card" key={entry.key}>
+            <label className="money">
+              <span aria-hidden="true">¥</span>
+              <input
+                aria-label={VOICE_COPY.amount}
+                inputMode="decimal"
+                value={entry.amount}
+                onChange={(event) => onChange(entry.key, { amount: event.target.value })}
+              />
+            </label>
+            <div className="confirm-fields">
+              <button type="button" className="field-chip" aria-label={VOICE_COPY.category} onClick={() => onPick(entry.key)}>
+                {CATEGORIES[entry.category].label}
+              </button>
+              <input
+                className="field-chip"
+                aria-label={VOICE_COPY.note}
+                value={entry.title}
+                onChange={(event) => onChange(entry.key, { title: event.target.value })}
               />
             </div>
-          ))}
-        </div>
+            {picking === entry.key ? (
+              <div className="cat-pop" role="group" aria-label={VOICE_COPY.category}>
+                {CATEGORY_ORDER.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={cn(id === entry.category && "on")}
+                    onClick={() => {
+                      onChange(entry.key, { category: id, subcategory: defaultPick(id, new Date()) });
+                      onPick(entry.key);
+                    }}
+                  >
+                    {CATEGORIES[id].label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <p className="source-line">
+              <span>{sourceLine(entry.source || entry.transcript)}</span>
+              {many ? (
+                <button type="button" className="drop" aria-label={`${VOICE_COPY.delete}${entry.title}`} onClick={() => onRemove(entry.key)}>
+                  {VOICE_COPY.delete}
+                </button>
+              ) : null}
+            </p>
+          </article>
+        ))}
       </div>
-      <div className="sheet-foot">
-        {many ? (
-          <>
-            <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
-              {VOICE_COPY.confirmAll}
-            </button>
-            <button type="button" className="again" onClick={onKeepEditing}>
-              {VOICE_COPY.keepEditing}
-            </button>
-          </>
-        ) : (
-          <button type="button" className="go" onClick={onCommit} disabled={!canSave}>
-            {VOICE_COPY.confirmOne}
-          </button>
-        )}
+      <div className="pair">
+        <button type="button" className="ghost" onClick={onCancel}>
+          {VOICE_COPY.cancel}
+        </button>
+        <button type="button" className="primary" onClick={onCommit} disabled={!canSave}>
+          {VOICE_COPY.confirmAll}
+        </button>
       </div>
-    </>
+    </div>
+  );
+}
+
+function MicMark() {
+  return (
+    <svg width="22" height="30" viewBox="0 0 22 30" aria-hidden="true">
+      <rect x="2" y="1" width="18" height="16" rx="8" fill="#fff" />
+      <path d="M2 13a9 9 0 0 0 18 0" fill="none" stroke="#fff" strokeWidth="2" />
+      <path d="M11 22v6" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }

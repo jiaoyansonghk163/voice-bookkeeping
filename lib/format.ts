@@ -48,6 +48,22 @@ export function formatClock(date: Date): string {
   return `${hours}:${minutes}`;
 }
 
+/** Home subtitle: 今天 · 10月22日 周四 */
+export function formatTodayLine(date: Date): string {
+  return `今天 · ${date.getMonth() + 1}月${date.getDate()}日 周${WEEKDAY_SHORT[date.getDay()]}`;
+}
+
+/** Bill line after the title: 刚刚, or 今天 18:20. */
+export function formatBillWhen(date: Date, now: Date): string {
+  const delta = now.getTime() - date.getTime();
+  if (delta >= 0 && delta < 5 * 60 * 1000) return "刚刚";
+  const clock = formatClock(date);
+  const days = Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
+  if (days === 0) return `今天 ${clock}`;
+  if (days === 1) return `昨天 ${clock}`;
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${clock}`;
+}
+
 export function formatDayGroup(date: Date, now: Date): string {
   const days = Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
   if (days === 0) return "今天";

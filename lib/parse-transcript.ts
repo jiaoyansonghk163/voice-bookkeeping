@@ -168,7 +168,9 @@ export function parseTranscript(transcript: string, now: Date = new Date()): Par
 
   let previous = 0;
   const entries = matches.map((match) => {
-    const clause = cleanupTitle(text.slice(previous, match.index));
+    const start = previous;
+    const clause = cleanupTitle(text.slice(start, match.index));
+    const source = text.slice(start, match.end).trim();
     previous = match.end;
     const classified = classifyClause(clause, now);
     return {
@@ -177,6 +179,7 @@ export function parseTranscript(transcript: string, now: Date = new Date()): Par
       subcategory: classified.subcategory,
       title: classified.title,
       transcript: text,
+      source,
       confidence: entryConfidence(match.hasUnit, classified.category, classified.title),
     };
   });
