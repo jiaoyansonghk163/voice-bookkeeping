@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { MicButton } from "@/components/bottom-nav";
 import {
   captureMode,
@@ -12,25 +13,26 @@ import {
 import { CATEGORY_ORDER, CATEGORIES, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { commitOrDrop, createdAtFromDay, stageUtterance, type EditableDraft } from "@/lib/drafts";
+import {
+  BACKDROP_IN_S,
+  BANNER_S,
+  CARD_FADE_S,
+  CARD_STAGGER_S,
+  CROSS_FADE_S,
+  EASE_A,
+  PULSE_S,
+  SHEET_IN_S,
+  SHEET_OUT_S,
+  WAVE_HEIGHTS,
+} from "@/lib/motion";
 import { VOICE_COPY, sourceLine } from "@/lib/voice-copy";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
-
-const WAVE = [8, 14, 10, 18, 12, 16, 9];
 /** Last resort if recognition never starts and never errors. The session has its own shorter timer. */
 const SHEET_WATCHDOG_MS = 15_000;
+let sheetHasEntered = false;
 
 type Capture = "listen" | "quiet" | "failed" | "type";
 type Pane = "listen" | "failed" | "type" | "review";
-
-interface Face {
-  pane: Pane;
-  title: string;
-  subtitle: string;
-  transcript: string;
-  typed: string;
-  entries: DraftEntry[];
-  picking: string | null;
-}
 
 interface DraftEntry extends EditableDraft {
   key: string;
@@ -39,7 +41,7 @@ interface DraftEntry extends EditableDraft {
 function StaticWave() {
   return (
     <div className="wave" aria-hidden="true">
-      {WAVE.map((height, index) => (
+      {WAVE_HEIGHTS.map((height, index) => (
         <i key={index} style={{ height }} />
       ))}
     </div>
@@ -288,6 +290,12 @@ export function VoiceSheet({
   }, [open, run, presetCategory]);
 
   useEffect(() => {
+    return () => {
+      sheetHasEntered = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onOffline = () => {
       if (!listeningRef.current) return;
@@ -297,17 +305,14 @@ export function VoiceSheet({
     return () => window.removeEventListener("offline", onOffline);
   }, [open]);
 
-  const stageRef = useRef<HTMLElement>(null);
+  const [keyLift, setKeyLift] = useState(0);
   useEffect(() => {
     if (!open) return;
     const viewport = window.visualViewport;
     if (!viewport) return;
     const place = () => {
-      const node = stageRef.current;
-      if (!node) return;
-      node.style.top = `${viewport.offsetTop}px`;
-      node.style.height = `${viewport.height}px`;
-      node.style.bottom = "auto";
+      const covered = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyLift(covered);
     };
     viewport.addEventListener("resize", place);
     viewport.addEventListener("scroll", place);
@@ -318,86 +323,100 @@ export function VoiceSheet({
     };
   }, [open]);
 
+  const reduce = useReducedMotion();
   const ready = commitOrDrop("confirm", entries) !== null && !commitLocked;
   const listening = capture === "listen" || capture === "quiet";
   const title =
     capture === "quiet" ? VOICE_COPY.quietTitle : capture === "failed" ? VOICE_COPY.failTitle : capture === "type" ? VOICE_COPY.typeTitle : VOICE_COPY.listenTitle;
   const subtitle = capture === "quiet" ? VOICE_COPY.quietSubtitle : capture === "failed" ? VOICE_COPY.failSubtitle : capture === "listen" ? VOICE_COPY.listenSubtitle : "";
   const pane: Pane = phase === "review" ? "review" : listening ? "listen" : capture === "failed" ? "failed" : "type";
-  const live: Face = { pane, title, subtitle, transcript, typed, entries, picking };
-  const frontRef = useRef(live);
-  const [front, setFront] = useState(live);
-  const [back, setBack] = useState<Face | null>(null);
-  frontRef.current = front;
+  const sheetExit = { duration: SHEET_OUT_S, ease: EASE_A };
 
-  useEffect(() => {
-    if (frontRef.current.pane === pane) return;
-    setBack(frontRef.current);
-    setFront(live);
-    const id = window.setTimeout(() => setBack(null), 180);
-    return () => window.clearTimeout(id);
-  }, [pane]);
-
-  useEffect(() => {
-    setFront((current) => (current.pane === pane ? live : current));
-  }, [pane, title, subtitle, transcript, typed, entries, picking]);
-
-  if (!open) return null;
-
-  const paint = (face: Face) => {
-    if (face.pane === "review") {
-      return (
-        <ConfirmEntries
-          entries={face.entries}
-          picking={face.picking}
-          onPick={(key) => setPicking((value) => (value === key ? null : key))}
-          onChange={updateEntry}
-          onRemove={(key) => {
-            setEntries((current) => current.filter((entry) => entry.key !== key));
-            setPicking((value) => (value === key ? null : value));
-          }}
-          canSave={ready}
-          onCancel={requestClose}
-          onCommit={confirmEntries}
-        />
-      );
-    }
-    if (face.pane === "listen") {
-      return (
-        <ListenStage
-          title={face.title}
-          subtitle={face.subtitle}
-          transcript={face.transcript}
-          onType={() => switchToType(transcriptRef.current)}
-          onFinish={finish}
-        />
-      );
-    }
-    if (face.pane === "failed") {
-      return (
-        <div className="listen-col">
-          <h1 className="listen-title">{VOICE_COPY.failTitle}</h1>
-          <p className="listen-sub">{VOICE_COPY.failSubtitle}</p>
-          <button type="button" className="primary wide" onClick={() => switchToType(transcriptRef.current)}>
-            {VOICE_COPY.typeInstead}
-          </button>
-        </div>
-      );
-    }
-    return <TypeStage typed={face.typed} onChange={setTyped} onClear={clearTyped} onFinish={finish} onRecord={startRecording} />;
-  };
+  let body = null;
+  if (pane === "review") {
+    body = (
+      <ConfirmEntries
+        entries={entries}
+        picking={picking}
+        onPick={(key) => setPicking((value) => (value === key ? null : key))}
+        onChange={updateEntry}
+        onRemove={(key) => {
+          setEntries((current) => current.filter((entry) => entry.key !== key));
+          setPicking((value) => (value === key ? null : value));
+        }}
+        canSave={ready}
+        onCancel={requestClose}
+        onCommit={confirmEntries}
+      />
+    );
+  } else if (pane === "listen") {
+    body = (
+      <ListenStage
+        title={title}
+        subtitle={subtitle}
+        transcript={transcript}
+        onType={() => switchToType(transcriptRef.current)}
+        onFinish={finish}
+      />
+    );
+  } else if (pane === "failed") {
+    body = (
+      <div className="listen-col">
+        <h1 className="listen-title">{VOICE_COPY.failTitle}</h1>
+        <p className="listen-sub">{VOICE_COPY.failSubtitle}</p>
+        <button type="button" className="primary wide" onClick={() => switchToType(transcriptRef.current)}>
+          {VOICE_COPY.typeInstead}
+        </button>
+      </div>
+    );
+  } else {
+    body = (
+      <TypeStage
+        typed={typed}
+        keyLift={keyLift}
+        onChange={setTyped}
+        onClear={clearTyped}
+        onFinish={finish}
+        onRecord={startRecording}
+      />
+    );
+  }
 
   return (
-    <section ref={stageRef} className="stage" role="dialog" aria-modal="true" aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}>
-      <div className="slot">
-        {back ? (
-          <div className={cn("pane", "out", back.pane === "listen" && "listen")} aria-hidden="true">
-            {paint(back)}
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="voice-backdrop"
+          className="sheet-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, transition: { duration: SHEET_OUT_S, ease: "easeOut" } }}
+          transition={{ duration: BACKDROP_IN_S, ease: "easeOut" }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {open ? (
+        <motion.section
+          key="voice-sheet"
+          className="stage"
+          role="dialog"
+          aria-modal="true"
+          aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}
+          initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
+          animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          exit={reduce ? { opacity: 0, transition: sheetExit } : { opacity: 0, y: 12, transition: sheetExit }}
+          transition={{ duration: SHEET_IN_S, ease: EASE_A }}
+        >
+          <div className="slot">
+            <AnimatePresence>
+              <CrossFade key={pane} className={cn("pane", pane === "listen" && "listen")}>
+                {body}
+              </CrossFade>
+            </AnimatePresence>
           </div>
-        ) : null}
-        <div className={cn("pane", back && "in", front.pane === "listen" && "listen")}>{paint(front)}</div>
-      </div>
-    </section>
+        </motion.section>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -417,12 +436,7 @@ function ListenStage({
   return (
     <>
       <div className="listen-col">
-        <div className="halo" aria-hidden="true">
-          <span className="halo-ring" />
-          <span className="halo-core">
-            <MicMark />
-          </span>
-        </div>
+        <ListeningMic />
         <h1 className="listen-title">{title}</h1>
         {transcript.trim() ? <p className="heard">{transcript}</p> : null}
         <StaticWave />
@@ -438,12 +452,14 @@ function ListenStage({
 
 function TypeStage({
   typed,
+  keyLift,
   onChange,
   onClear,
   onFinish,
   onRecord,
 }: {
   typed: string;
+  keyLift: number;
   onChange: (value: string) => void;
   onClear: () => void;
   onFinish: () => void;
@@ -454,21 +470,23 @@ function TypeStage({
     <div className="type-page">
       <h1>{VOICE_COPY.typeTitle}</h1>
       <p className="page-sub">{VOICE_COPY.typeHint}</p>
-      <textarea
-        className="typebox"
-        value={typed}
-        placeholder={VOICE_COPY.typePlaceholder}
-        aria-label={VOICE_COPY.typeTitle}
-        rows={3}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <div className="pair">
-        <button type="button" className="ghost" onClick={onClear}>
-          {VOICE_COPY.clear}
-        </button>
-        <button type="button" className="primary" onClick={onFinish} disabled={empty}>
-          {VOICE_COPY.typeDone}
-        </button>
+      <div className="type-lift" style={keyLift > 0 ? { transform: `translateY(-${keyLift}px)` } : undefined}>
+        <textarea
+          className="typebox"
+          value={typed}
+          placeholder={VOICE_COPY.typePlaceholder}
+          aria-label={VOICE_COPY.typeTitle}
+          rows={3}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <div className="pair">
+          <button type="button" className="ghost" onClick={onClear}>
+            {VOICE_COPY.clear}
+          </button>
+          <button type="button" className="primary" onClick={onFinish} disabled={empty}>
+            {VOICE_COPY.typeDone}
+          </button>
+        </div>
       </div>
       <button type="button" className="record" aria-label={VOICE_COPY.startMic} onClick={onRecord}>
         <span className="face" aria-hidden="true">
@@ -506,12 +524,24 @@ function ConfirmEntries({
     <div className="confirm-page">
       <h1>{VOICE_COPY.confirmTitle}</h1>
       <p className="page-sub">{VOICE_COPY.confirmHint}</p>
-      <p className={cn("warn-bar", unsure && "on")} aria-hidden={unsure ? undefined : true}>
+      <motion.p
+        className="warn-bar"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: unsure ? 1 : 0 }}
+        transition={{ duration: BANNER_S, ease: "easeOut" }}
+        aria-hidden={unsure ? undefined : true}
+      >
         {VOICE_COPY.lowConfidence}
-      </p>
+      </motion.p>
       <div className="confirm-list">
-        {entries.map((entry) => (
-          <article className="confirm-card" key={entry.key}>
+        {entries.map((entry, index) => (
+          <motion.article
+            className="confirm-card"
+            key={entry.key}
+            initial={entries.length > 1 ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: CARD_FADE_S, ease: EASE_A, delay: entries.length > 1 ? index * CARD_STAGGER_S : 0 }}
+          >
             <label className="money">
               <span aria-hidden="true">¥</span>
               <input
@@ -557,7 +587,7 @@ function ConfirmEntries({
                 </button>
               ) : null}
             </p>
-          </article>
+          </motion.article>
         ))}
       </div>
       <div className="pair">
@@ -568,6 +598,44 @@ function ConfirmEntries({
           {VOICE_COPY.confirmAll}
         </button>
       </div>
+    </div>
+  );
+}
+
+function CrossFade({ className, children }: { className?: string; children: ReactNode }) {
+  const skipEnter = useRef(!sheetHasEntered);
+  if (!sheetHasEntered) sheetHasEntered = true;
+  return (
+    <motion.div
+      className={className}
+      initial={skipEnter.current ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, pointerEvents: "none" }}
+      transition={{ duration: CROSS_FADE_S, ease: EASE_A }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ListeningMic() {
+  const reduce = useReducedMotion();
+  return (
+    <div className="halo" aria-hidden="true">
+      <motion.span
+        className="halo-ring"
+        initial={{ opacity: reduce ? 0.4 : 0.25 }}
+        animate={reduce ? { opacity: 0.4 } : { opacity: [0.25, 0.55, 0.25] }}
+        transition={reduce ? { duration: 0 } : { duration: PULSE_S, ease: "easeInOut", repeat: Infinity, repeatType: "loop" }}
+      />
+      <motion.span
+        className="halo-core"
+        initial={{ scale: 1 }}
+        animate={reduce ? { scale: 1 } : { scale: [1, 1.04, 1] }}
+        transition={reduce ? { duration: 0 } : { duration: PULSE_S, ease: "easeInOut", repeat: Infinity, repeatType: "loop", times: [0, 0.5, 1] }}
+      >
+        <MicMark />
+      </motion.span>
     </div>
   );
 }

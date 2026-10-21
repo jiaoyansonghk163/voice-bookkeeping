@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import type { LedgerState } from "@/lib/backup";
 import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
@@ -10,6 +11,7 @@ import { DetailScreen } from "@/components/detail-screen";
 import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
+import { EASE_A, TAB_S } from "@/lib/motion";
 import { StoreProvider, useStore } from "@/lib/store";
 import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
@@ -243,9 +245,15 @@ function Shell() {
           )}
 
           <main ref={scrollRef} className={pageTitle ? "scroll page" : showChrome ? "scroll" : "scroll plain"} data-screen={route.name}>
-            <div key={route.name} className="pane">
+            <motion.div
+              key={route.name}
+              className="pane"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: TAB_S, ease: EASE_A }}
+            >
               {screen}
-            </div>
+            </motion.div>
           </main>
 
           {showChrome && <MicButton label="语音记账" onClick={() => openVoice()} />}

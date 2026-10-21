@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+import { EASE_A, FAB_PRESS_S, FAB_RELEASE_S } from "@/lib/motion";
 
 export type TabId = "home" | "stats" | "me";
 
@@ -23,10 +28,26 @@ export function MicButton({
   label: string;
   className?: string;
 }) {
+  const reduce = useReducedMotion();
+  const [pressed, setPressed] = useState(false);
+  const release = () => setPressed(false);
   return (
-    <button type="button" className={cn("mic", stop && "stop", className)} aria-label={label} onClick={onClick}>
-      <MicGlyph />
-    </button>
+    <span className="mic-anchor">
+      <motion.button
+        type="button"
+        className={cn("mic", stop && "stop", className)}
+        aria-label={label}
+        onClick={onClick}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={release}
+        onPointerLeave={release}
+        onPointerCancel={release}
+        animate={{ scale: pressed && !reduce ? 0.96 : 1 }}
+        transition={pressed ? { duration: FAB_PRESS_S, ease: "easeOut" } : { duration: FAB_RELEASE_S, ease: EASE_A }}
+      >
+        <MicGlyph />
+      </motion.button>
+    </span>
   );
 }
 
