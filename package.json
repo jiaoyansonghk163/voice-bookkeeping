@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build && node scripts/precache.mjs",
     "start": "next start",
-    "test": "tsx --test lib/parse-transcript.test.ts lib/backup.test.ts lib/drafts.test.ts"
+    "test": "tsx --test lib/parse-transcript.test.ts lib/backup.test.ts lib/drafts.test.ts lib/asr.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",

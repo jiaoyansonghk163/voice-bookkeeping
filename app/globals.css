@@ -883,6 +883,21 @@ header.top.scrolled {
   border-radius: 2px;
   background: linear-gradient(180deg, #818cf8, #6366f1);
   opacity: 0.85;
+  transform-origin: center;
+}
+
+.wave.live i {
+  animation: listen-wave 1.05s ease-in-out infinite;
+}
+
+@keyframes listen-wave {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
 }
 
 .ctrl {
@@ -1403,7 +1418,8 @@ header.top.scrolled {
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .dot,
-  .transcript .cur {
+  .transcript .cur,
+  .wave.live i {
     animation: none;
   }
 
