@@ -77,6 +77,9 @@ export function VoiceSheet({
   const [recordedAt, setRecordedAt] = useState<Date>(() => new Date());
   const [picking, setPicking] = useState<string | null>(null);
   const [run, setRun] = useState(0);
+  const [commitLocked, setCommitLocked] = useState(false);
+  const finishLock = useRef(false);
+  const commitLock = useRef(false);
 
   onCloseRef.current = onClose;
 
@@ -123,6 +126,8 @@ export function VoiceSheet({
   };
 
   const finish = () => {
+    if (finishLock.current) return;
+    finishLock.current = true;
     const handle = listenRef.current;
     listenRef.current = null;
     listeningRef.current = false;
@@ -130,10 +135,12 @@ export function VoiceSheet({
     handle?.stop();
     const text = (capture === "type" ? typed : transcriptRef.current).trim();
     if (!text) {
+      finishLock.current = false;
       useTyping("", EMPTY_HINT);
       return;
     }
     session.current += 1;
+    if (!stageUtterance(text, new Date(), presetCategory)) finishLock.current = false;
     goReview(text);
   };
 
@@ -155,6 +162,9 @@ export function VoiceSheet({
     const id = session.current + 1;
     session.current = id;
     listeningRef.current = false;
+    finishLock.current = false;
+    commitLock.current = false;
+    setCommitLocked(false);
     stopMic();
     setPhase("capture");
     transcriptRef.current = "";
@@ -306,10 +316,14 @@ export function VoiceSheet({
                 setEntries([]);
                 setRun((value) => value + 1);
               }}
-              canSave={ready !== null}
+              canSave={ready !== null && !commitLocked}
               onCommit={() => {
+                if (commitLock.current) return;
                 const expenses = commitOrDrop("confirm", entries);
-                if (expenses) onCommit(expenses, recordedAt);
+                if (!expenses) return;
+                commitLock.current = true;
+                setCommitLocked(true);
+                onCommit(expenses, recordedAt);
               }}
             />
           ) : phase === "review" ? (

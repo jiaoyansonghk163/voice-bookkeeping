@@ -92,6 +92,52 @@ export function parseBackup(text: string): LedgerState | null {
   }
 }
 
+export type ImportMode = "append" | "replace";
+
+export interface ImportApply {
+  ledger: LedgerState;
+  added: number;
+  skipped: number;
+}
+
+/**
+ * Append keeps the current bills and budget, and skips ids already stored.
+ * Replace swaps the whole table, including the budget, for the file.
+ */
+export function applyImport(current: LedgerState, incoming: LedgerState, mode: ImportMode): ImportApply {
+  if (mode === "replace") {
+    return {
+      ledger: {
+        transactions: incoming.transactions,
+        monthlyBudget: incoming.monthlyBudget,
+      },
+      added: incoming.transactions.length,
+      skipped: 0,
+    };
+  }
+
+  const seen = new Set(current.transactions.map((item) => item.id));
+  const added: LedgerState["transactions"] = [];
+  let skipped = 0;
+  for (const item of incoming.transactions) {
+    if (seen.has(item.id)) {
+      skipped += 1;
+      continue;
+    }
+    seen.add(item.id);
+    added.push(item);
+  }
+
+  return {
+    ledger: {
+      transactions: [...added, ...current.transactions],
+      monthlyBudget: current.monthlyBudget,
+    },
+    added: added.length,
+    skipped,
+  };
+}
+
 export function serializeBackup(state: LedgerState): string {
   const backup: LedgerBackup = {
     version: 1,

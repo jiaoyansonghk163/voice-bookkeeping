@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "语音记账",
+  title: "璃记",
   description: "说话，就记账。界面演示，金额均为虚构示例数据。",
-  applicationName: "语音记账",
+  applicationName: "璃记",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "语音记账",
+    title: "璃记",
   },
   icons: {
     icon: [

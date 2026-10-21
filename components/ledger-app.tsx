@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LedgerState } from "@/lib/backup";
+import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
 import { BottomNav, MicButton, type TabId } from "@/components/bottom-nav";
 import { BudgetScreen } from "@/components/budget-screen";
@@ -68,15 +69,27 @@ function Shell() {
     { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
   >(null);
   const toastTimer = useRef<number | null>(null);
+  const saveGate = useRef(createSaveGate());
   const [now] = useState(() => new Date());
   const [headerScrolled, setHeaderScrolled] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
+    const hadController = navigator.serviceWorker.controller != null;
+    let reloaded = false;
+    const onChange = () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    if (hadController) navigator.serviceWorker.addEventListener("controllerchange", onChange);
     navigator.serviceWorker.register("/sw.js").catch(() => {
       /* the static shell still works online if the worker cannot install */
     });
+    return () => {
+      if (hadController) navigator.serviceWorker.removeEventListener("controllerchange", onChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -127,6 +140,7 @@ function Shell() {
 
   const commitVoice = (expenses: ParsedExpense[], at: Date) => {
     if (expenses.length === 0) return;
+    if (!saveGate.current.claim(`voice-${voiceSession}`)) return;
     const saved = store.addMany(expenses, at);
     setVoiceOpen(false);
     go({ name: "home" });
