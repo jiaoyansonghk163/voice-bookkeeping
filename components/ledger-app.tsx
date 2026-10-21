@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import type { LedgerState } from "@/lib/backup";
+import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
 import { BottomNav, MicButton, type TabId } from "@/components/bottom-nav";
 import { BudgetScreen } from "@/components/budget-screen";
@@ -9,6 +11,7 @@ import { DetailScreen } from "@/components/detail-screen";
 import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
+import { EASE_A, TAB_S } from "@/lib/motion";
 import { StoreProvider, useStore } from "@/lib/store";
 import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
@@ -68,15 +71,27 @@ function Shell() {
     { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
   >(null);
   const toastTimer = useRef<number | null>(null);
+  const saveGate = useRef(createSaveGate());
   const [now] = useState(() => new Date());
   const [headerScrolled, setHeaderScrolled] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
+    const hadController = navigator.serviceWorker.controller != null;
+    let reloaded = false;
+    const onChange = () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    if (hadController) navigator.serviceWorker.addEventListener("controllerchange", onChange);
     navigator.serviceWorker.register("/sw.js").catch(() => {
       /* the static shell still works online if the worker cannot install */
     });
+    return () => {
+      if (hadController) navigator.serviceWorker.removeEventListener("controllerchange", onChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -127,6 +142,7 @@ function Shell() {
 
   const commitVoice = (expenses: ParsedExpense[], at: Date) => {
     if (expenses.length === 0) return;
+    if (!saveGate.current.claim(`voice-${voiceSession}`)) return;
     const saved = store.addMany(expenses, at);
     setVoiceOpen(false);
     go({ name: "home" });
@@ -143,22 +159,17 @@ function Shell() {
     node.addEventListener("scroll", onScroll, { passive: true });
     return () => node.removeEventListener("scroll", onScroll);
   }, [ready, route.name]);
-  const showChrome = route.name !== "detail";
-  const monthTitle = `${now.getMonth() + 1} 月账本`;
+  const showChrome = route.name !== "detail" && !voiceOpen;
+  const pageTitle = route.name === "home" || route.name === "stats" || route.name === "me";
   const title =
-    route.name === "stats"
-      ? "统计"
-      : route.name === "budget"
-        ? "预算"
-        : route.name === "me"
-          ? "我的"
-          : route.name === "all"
-            ? "全部账单"
-            : route.name === "detail"
-              ? "明细"
-              : monthTitle;
-  const showChevron = route.name === "home";
-  const showBack = route.name === "detail" || route.name === "all";
+    route.name === "budget"
+      ? "预算"
+      : route.name === "me"
+        ? "我的"
+        : route.name === "all"
+          ? "全部账单"
+          : "明细";
+  const showBack = route.name === "detail" || route.name === "all" || route.name === "budget";
 
   let screen = null;
   if (route.name === "home") {
@@ -166,11 +177,8 @@ function Shell() {
       <HomeScreen
         transactions={store.transactions}
         now={now}
-        monthlyBudget={store.monthlyBudget}
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
-        onOpenAll={() => go({ name: "all" })}
-        onQuick={(category) => openVoice(category)}
         onDelete={deleteTransaction}
       />
     );
@@ -219,9 +227,9 @@ function Shell() {
         <div className="boot">语音记账</div>
       ) : (
         <>
-          <header className={headerScrolled ? "top scrolled" : "top"}>
-            <div className="hrow">
-              <div>
+          {pageTitle ? null : (
+            <header className={headerScrolled ? "top scrolled" : "top"}>
+              <div className="hrow">
                 <h1>
                   {showBack && (
                     <button type="button" className="back" aria-label="返回" onClick={() => go({ name: "home" })}>
@@ -231,25 +239,24 @@ function Shell() {
                     </button>
                   )}
                   {title}
-                  {showChevron && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  )}
                 </h1>
               </div>
-              <button type="button" className="avatar" aria-label="我的" onClick={() => go({ name: "me" })}>
-                CA
-              </button>
-            </div>
-          </header>
+            </header>
+          )}
 
-          <main ref={scrollRef} className={showChrome ? "scroll" : "scroll plain"} data-screen={route.name}>
-            {screen}
+          <main ref={scrollRef} className={pageTitle ? "scroll page" : showChrome ? "scroll" : "scroll plain"} data-screen={route.name}>
+            <motion.div
+              key={route.name}
+              className="pane"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: TAB_S, ease: EASE_A }}
+            >
+              {screen}
+            </motion.div>
           </main>
 
-          {showChrome && <div className="fade" />}
-          {showChrome && <MicButton onClick={() => openVoice()} />}
+          {showChrome && <MicButton label="语音记账" onClick={() => openVoice()} />}
           {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
 
           <VoiceSheet

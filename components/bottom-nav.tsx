@@ -1,57 +1,69 @@
+"use client";
+
+import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+import { EASE_A, FAB_PRESS_S, FAB_RELEASE_S } from "@/lib/motion";
 
 export type TabId = "home" | "stats" | "me";
 
-function LedgerIcon() {
+function MicGlyph() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <rect x="4" y="3" width="16" height="18" rx="3" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
+    <svg viewBox="0 0 22 30" aria-hidden="true">
+      <rect x="2" y="1" width="18" height="16" rx="8" fill="currentColor" />
+      <path d="M2 13a9 9 0 0 0 18 0" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path d="M11 22v6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
-function StatsIcon() {
+export function MicButton({
+  onClick,
+  stop = false,
+  label,
+  className,
+}: {
+  onClick: () => void;
+  stop?: boolean;
+  label: string;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  const [pressed, setPressed] = useState(false);
+  const release = () => setPressed(false);
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <path d="M4 20V4M4 20h16M8.5 16v-5M13 16V8M17.5 16v-3" />
-    </svg>
-  );
-}
-
-function MeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="8.5" r="4" />
-      <path d="M4.5 20.5a7.5 7.5 0 0115 0" />
-    </svg>
-  );
-}
-
-export function MicButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button type="button" className="mic" aria-label="语音记账" onClick={onClick}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
-        <path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" />
-      </svg>
-    </button>
+    <span className="mic-anchor">
+      <motion.button
+        type="button"
+        className={cn("mic", stop && "stop", className)}
+        aria-label={label}
+        onClick={onClick}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={release}
+        onPointerLeave={release}
+        onPointerCancel={release}
+        animate={{ scale: pressed && !reduce ? 0.96 : 1 }}
+        transition={pressed ? { duration: FAB_PRESS_S, ease: "easeOut" } : { duration: FAB_RELEASE_S, ease: EASE_A }}
+      >
+        <MicGlyph />
+      </motion.button>
+    </span>
   );
 }
 
 export function BottomNav({ current, onChange }: { current: TabId; onChange: (tab: TabId) => void }) {
   return (
-    <nav className="tab glass" aria-label="主导航">
+    <nav className="tab" aria-label="主导航">
       <button type="button" className={cn("ti", current === "home" && "on")} onClick={() => onChange("home")}>
-        <LedgerIcon />
-        账单
+        <i />
+        流水
       </button>
       <button type="button" className={cn("ti", current === "stats" && "on")} onClick={() => onChange("stats")}>
-        <StatsIcon />
+        <i />
         统计
       </button>
       <button type="button" className={cn("ti", current === "me" && "on")} onClick={() => onChange("me")}>
-        <MeIcon />
+        <i />
         我的
       </button>
     </nav>

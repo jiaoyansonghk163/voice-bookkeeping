@@ -50,7 +50,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subcategory: expense.subcategory,
       title: expense.title,
       transcript: expense.transcript,
-      createdAt: new Date(base + index).toISOString(),
+      createdAt: expense.createdAt ?? new Date(base + index).toISOString(),
       source: "voice",
     }));
     setState((current) =>
@@ -60,7 +60,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setHighlightIds(ids);
     window.setTimeout(() => {
       setHighlightIds((current) => (current.some((id) => ids.includes(id)) ? [] : current));
-    }, 2800);
+    }, 940);
     return transactions;
   }, []);
 

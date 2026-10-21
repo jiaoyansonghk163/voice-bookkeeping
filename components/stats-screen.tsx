@@ -1,74 +1,49 @@
-import { Glyph, toneFor } from "@/components/glyphs";
-import { Sparkline } from "@/components/sparkline";
 import { CATEGORIES } from "@/lib/categories";
-import { formatYuanTrim, weekdayShort } from "@/lib/format";
-import { breakdownByCategory, sumAmounts } from "@/lib/ledger";
-import { presentKpis } from "@/lib/metrics";
+import { formatYuanTrim, roundMoney } from "@/lib/format";
+import { breakdownByCategory, transactionsInMonth } from "@/lib/ledger";
 import type { Transaction } from "@/lib/types";
 
+function weekTotals(transactions: Transaction[], now: Date): number[] {
+  const totals = [0, 0, 0, 0];
+  for (const item of transactionsInMonth(transactions, now)) {
+    const day = new Date(item.createdAt).getDate();
+    totals[Math.min(3, Math.floor((day - 1) / 7))] += item.amount;
+  }
+  return totals.map((value) => roundMoney(value));
+}
+
 export function StatsScreen({ transactions, now }: { transactions: Transaction[]; now: Date }) {
-  const slices = breakdownByCategory(transactions);
-  const total = sumAmounts(transactions);
-  const kpis = presentKpis(transactions, now, null);
+  const monthItems = transactionsInMonth(transactions, now);
+  const monthSpend = roundMoney(monthItems.reduce((sum, item) => sum + item.amount, 0));
+  const weeks = weekTotals(transactions, now);
+  const peak = Math.max(...weeks, 0);
+  const current = Math.min(3, Math.floor((now.getDate() - 1) / 7));
+  const slices = breakdownByCategory(monthItems);
 
   return (
     <>
-      <section className="kpis rise">
-        <article className="kpi glass main">
-          <div className="l">账单合计</div>
-          <div className="v num">¥{formatYuanTrim(total)}</div>
-          <div className="d">这台设备上的账单</div>
-        </article>
-      </section>
-      <section className="panel block rise" style={{ animationDelay: ".04s" }}>
-        <div className="ph">
-          <h2>近 7 天</h2>
-          <span>
-            日均{" "}
-            <b className="num" style={{ color: "var(--text)", fontWeight: 600 }}>
-              ¥{formatYuanTrim(kpis.dailyAvg)}
-            </b>
-          </span>
-        </div>
-        <Sparkline values={kpis.days.map((day) => day.total)} />
-        <div className="days">
-          {kpis.days.map((day, index) => (
-            <span key={day.date.toISOString()} className={index === kpis.days.length - 1 ? "on" : undefined}>
-              {index === kpis.days.length - 1 ? "今天" : weekdayShort(day.date)}
-            </span>
-          ))}
-        </div>
-      </section>
-      <section className="panel block rise" style={{ animationDelay: ".08s" }}>
-        <div className="ph">
-          <h2>分类占比</h2>
-          <span>{slices.length} 类</span>
-        </div>
-        <div className="share">
-          {slices.length === 0 ? <p className="empty">还没有账单。</p> : null}
-          {slices.map((slice) => {
-            const tone = toneFor(CATEGORIES[slice.category].label, slice.category);
-            return (
-              <div className="line" key={slice.category}>
-                <span className="ic" style={{ background: tone.bg, color: tone.fg }}>
-                  <Glyph name={tone.glyph} />
-                </span>
-                <div className="grow">
-                  <div className="name">{CATEGORIES[slice.category].label}</div>
-                  <div className="track">
-                    <i style={{ width: `${Math.max(6, Math.round(slice.share * 100))}%` }} />
-                  </div>
-                </div>
-                <div className="mix-amt">
-                  <div className="amt num">¥{formatYuanTrim(slice.total)}</div>
-                  <div className="sub num">{Math.round(slice.share * 100)}%</div>
-                </div>
-              </div>
-            );
+      <h1 className="page-title">统计</h1>
+      <p className="page-sub">本月 · {now.getMonth() + 1}月</p>
+      <section className="month-card">
+        <span>本月支出</span>
+        <b>¥{formatYuanTrim(monthSpend)}</b>
+        <div className="bars" aria-hidden="true">
+          {weeks.map((value, index) => {
+            const height = peak <= 0 ? 40 : Math.max(18, Math.round((value / peak) * 78));
+            return <i key={index} className={index === current ? "now" : undefined} style={{ height }} />;
           })}
         </div>
       </section>
-      <p className="fine">这里按这台设备上的账单汇总。</p>
+      <h2 className="section-title">分类占比</h2>
+      {slices.length === 0 ? <p className="empty">还没有账单。</p> : null}
+      <div className="share-list">
+        {slices.map((slice) => (
+          <div className="share-card" key={slice.category}>
+            <span>{CATEGORIES[slice.category].label}</span>
+            <b>¥{formatYuanTrim(slice.total)}</b>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

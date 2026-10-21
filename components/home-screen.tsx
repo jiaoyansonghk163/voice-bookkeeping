@@ -1,161 +1,55 @@
-import type { ReactNode } from "react";
-import { Glyph, categoryGlyph, toneFor } from "@/components/glyphs";
 import { TxnRow } from "@/components/txn-row";
-import { CATEGORIES } from "@/lib/categories";
-import { formatDayHeading, formatYuanTrim } from "@/lib/format";
-import { frequentCategories, groupByDay } from "@/lib/ledger";
-import { presentKpis } from "@/lib/metrics";
-import type { CategoryId, Transaction } from "@/lib/types";
-
-function Delta({ delta }: { delta: number | null }) {
-  if (delta == null) return <div className="d">较上月 —</div>;
-  if (Math.abs(delta) < 0.005) return <div className="d">与上月持平</div>;
-  const arrow = delta < 0 ? "↓" : "↑";
-  return (
-    <div className="d">
-      <b>
-        {arrow} {Math.abs(Math.round(delta * 100))}%
-      </b>{" "}
-      较上月
-    </div>
-  );
-}
-
-function BillGroups({
-  transactions,
-  now,
-  highlightIds,
-  onOpen,
-  onDelete,
-  empty,
-}: {
-  transactions: Transaction[];
-  now: Date;
-  highlightIds: string[];
-  onOpen: (id: string) => void;
-  onDelete?: (transaction: Transaction) => void;
-  empty: string;
-}) {
-  const groups = groupByDay(transactions, now, formatDayHeading);
-  if (groups.length === 0) return <p className="empty">{empty}</p>;
-  return (
-    <div className="list">
-      {groups.map((group) => (
-        <section className="day" key={group.label}>
-          <div className="dayhead">
-            <span>{group.label}</span>
-            <b className="num">¥{formatYuanTrim(group.total)}</b>
-          </div>
-          {group.items.map((transaction) => (
-            <TxnRow
-              key={transaction.id}
-              transaction={transaction}
-              now={now}
-              fresh={highlightIds.includes(transaction.id)}
-              onOpen={onOpen}
-              onDelete={onDelete}
-            />
-          ))}
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function CardIcon({ children }: { children: ReactNode }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
-}
+import { formatTodayLine, formatYuan } from "@/lib/format";
+import type { Transaction } from "@/lib/types";
 
 export function HomeScreen({
   transactions,
   now,
-  monthlyBudget,
   highlightIds,
   onOpen,
-  onOpenAll,
-  onQuick,
   onDelete,
 }: {
   transactions: Transaction[];
   now: Date;
-  monthlyBudget: number | null;
   highlightIds: string[];
   onOpen: (id: string) => void;
-  onOpenAll: () => void;
-  onQuick: (category: CategoryId) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
-  const kpis = presentKpis(transactions, now, monthlyBudget);
-  const quicks = frequentCategories(transactions);
+  const todaySpend = transactions
+    .filter((item) => {
+      const date = new Date(item.createdAt);
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+    })
+    .reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <>
-      <section className="cards rise">
-        <article className="card-stat" data-card="today">
-          <span className="tile purple" aria-hidden="true">
-            <CardIcon>
-              <rect x="4" y="5" width="16" height="15" rx="3" />
-              <path d="M8 3.5v3M16 3.5v3M4 10h16" />
-            </CardIcon>
-          </span>
-          <div className="body">
-            <div className="l">今日支出</div>
-            <div className="v spend num" data-kpi="today">
-              ¥{formatYuanTrim(kpis.todaySpend)}
-            </div>
-            <div className="d">{kpis.todayCount} 笔</div>
-          </div>
+      <h1 className="page-title">璃记</h1>
+      <p className="page-sub">{formatTodayLine(now)}</p>
+      <section className="kpi-row">
+        <article className="kpi-card">
+          <span>今日支出</span>
+          <b className="out">¥{formatYuan(todaySpend)}</b>
         </article>
-        <article className="card-stat">
-          <span className="tile purple" aria-hidden="true">
-            <CardIcon>
-              <path d="M4 19V10M12 19V5M20 19v-7" />
-            </CardIcon>
-          </span>
-          <div className="body">
-            <div className="l">本月支出</div>
-            <div className="v spend num" data-kpi="month">
-              ¥{formatYuanTrim(kpis.monthSpend)}
-            </div>
-            <Delta delta={kpis.delta} />
-          </div>
+        <article className="kpi-card">
+          <span>今日收入</span>
+          <b className="in">¥{formatYuan(0)}</b>
         </article>
       </section>
-
-      <section className="quicks rise" aria-label="常用分类">
-        {quicks.map((id) => {
-          const tone = toneFor(CATEGORIES[id].label, id);
-          return (
-            <button key={id} type="button" className="quick" onClick={() => onQuick(id)}>
-              <span className="tile" style={{ background: tone.bg, color: tone.fg }}>
-                <Glyph name={categoryGlyph(id)} />
-              </span>
-              {CATEGORIES[id].label}
-            </button>
-          );
-        })}
-      </section>
-
-      <section className="panel block rise" style={{ animationDelay: ".06s" }}>
-        <div className="ph">
-          <h2>最近账单</h2>
-          <button type="button" className="link" onClick={onOpenAll}>
-            全部
-          </button>
-        </div>
-        <BillGroups
-          transactions={transactions}
-          now={now}
-          highlightIds={highlightIds}
-          onOpen={onOpen}
-          onDelete={onDelete}
-          empty="还没有账单。点下方麦克风记一笔。"
-        />
-      </section>
+      <h2 className="section-title">最近账单</h2>
+      {transactions.length === 0 ? <p className="empty">还没有账单。点下方麦克风记一笔。</p> : null}
+      <div className="bills">
+        {transactions.map((transaction) => (
+          <TxnRow
+            key={transaction.id}
+            transaction={transaction}
+            now={now}
+            fresh={highlightIds.includes(transaction.id)}
+            onOpen={onOpen}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
     </>
   );
 }
@@ -174,19 +68,18 @@ export function AllScreen({
   onDelete: (transaction: Transaction) => void;
 }) {
   return (
-    <section className="panel block rise">
-      <div className="ph">
-        <h2>最近账单</h2>
-        <span className="num">{transactions.length} 笔</span>
-      </div>
-      <BillGroups
-        transactions={transactions}
-        now={now}
-        highlightIds={highlightIds}
-        onOpen={onOpen}
-        onDelete={onDelete}
-        empty="还没有账单。"
-      />
-    </section>
+    <div className="bills">
+      {transactions.length === 0 ? <p className="empty">还没有账单。</p> : null}
+      {transactions.map((transaction) => (
+        <TxnRow
+          key={transaction.id}
+          transaction={transaction}
+          now={now}
+          fresh={highlightIds.includes(transaction.id)}
+          onOpen={onOpen}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
   );
 }

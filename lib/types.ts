@@ -26,6 +26,12 @@ export interface ParsedExpense {
   subcategory: string;
   title: string;
   transcript: string;
+  /** Spoken slice for this bill, shown as 原文 before confirm. */
+  source?: string;
+  /** Set by the parser. Low means the confirm sheet shows the review hint. */
+  confidence?: "high" | "low";
+  /** Set when the user confirms a chosen calendar day. */
+  createdAt?: string;
 }
 
 export type ParseResult =

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeLedger, parseBackup, serializeBackup } from "./backup";
+import { applyImport, normalizeLedger, parseBackup, serializeBackup } from "./backup";
+import type { Transaction } from "./types";
 
 test("round-trips a ledger backup", () => {
   const raw = serializeBackup({
@@ -94,6 +95,56 @@ test("normalizes an on-device ledger that predates subcategories", () => {
   });
   assert.equal(ledger.transactions[0]?.subcategory, "餐饮");
   assert.equal(ledger.monthlyBudget, 100);
+});
+
+function bill(id: string, title: string, createdAt = "2026-10-20T12:00:00.000Z"): Transaction {
+  return {
+    id,
+    amount: 12,
+    category: "food",
+    subcategory: "午餐",
+    title,
+    transcript: title,
+    createdAt,
+    source: "voice",
+  };
+}
+
+test("export stays a version 1 ledger file", () => {
+  const raw = serializeBackup({ transactions: [bill("a", "午饭")], monthlyBudget: 2000 });
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  assert.equal(parsed.version, 1);
+  assert.deepEqual(Object.keys(parsed).sort(), ["exportedAt", "monthlyBudget", "transactions", "version"]);
+  assert.equal(parseBackup(raw)?.transactions[0]?.id, "a");
+});
+
+test("append adds new rows, skips ids already stored, and keeps the current budget", () => {
+  const current = { monthlyBudget: 100, transactions: [bill("a", "午饭")] };
+  const incoming = {
+    monthlyBudget: 999,
+    transactions: [bill("a", "午饭"), bill("b", "地铁", "2026-10-21T01:00:00.000Z"), bill("b", "地铁")],
+  };
+  const result = applyImport(current, incoming, "append");
+  assert.equal(result.added, 1);
+  assert.equal(result.skipped, 2);
+  assert.equal(result.ledger.monthlyBudget, 100);
+  assert.deepEqual(
+    result.ledger.transactions.map((item) => item.id),
+    ["b", "a"],
+  );
+});
+
+test("replace swaps the table and the budget", () => {
+  const current = { monthlyBudget: 100, transactions: [bill("a", "午饭"), bill("keep", "咖啡")] };
+  const incoming = { monthlyBudget: 50, transactions: [bill("b", "地铁")] };
+  const result = applyImport(current, incoming, "replace");
+  assert.equal(result.added, 1);
+  assert.equal(result.skipped, 0);
+  assert.equal(result.ledger.monthlyBudget, 50);
+  assert.deepEqual(
+    result.ledger.transactions.map((item) => item.id),
+    ["b"],
+  );
 });
 
 test("rejects a backup that is not the ledger file", () => {

@@ -1,5 +1,5 @@
 import { classifyClause } from "./categories";
-import type { ParseResult } from "./types";
+import type { CategoryId, ParseResult } from "./types";
 
 const DIGITS: Record<string, number> = {
   零: 0,
@@ -143,6 +143,12 @@ function findAmounts(text: string): AmountMatch[] {
   return matches;
 }
 
+export function entryConfidence(hasUnit: boolean, category: CategoryId, title: string): "high" | "low" {
+  if (!hasUnit) return "low";
+  if (category === "other" && title === "其他") return "low";
+  return "high";
+}
+
 function cleanupTitle(input: string): string {
   let text = input.replace(/[，。,.、！!？?\s]/g, "");
   let previous = "";
@@ -162,7 +168,9 @@ export function parseTranscript(transcript: string, now: Date = new Date()): Par
 
   let previous = 0;
   const entries = matches.map((match) => {
-    const clause = cleanupTitle(text.slice(previous, match.index));
+    const start = previous;
+    const clause = cleanupTitle(text.slice(start, match.index));
+    const source = text.slice(start, match.end).trim();
     previous = match.end;
     const classified = classifyClause(clause, now);
     return {
@@ -171,6 +179,8 @@ export function parseTranscript(transcript: string, now: Date = new Date()): Par
       subcategory: classified.subcategory,
       title: classified.title,
       transcript: text,
+      source,
+      confidence: entryConfidence(match.hasUnit, classified.category, classified.title),
     };
   });
 

@@ -1,12 +1,12 @@
 {
-  "name": "语音记账",
-  "short_name": "语音记账",
+  "name": "璃记",
+  "short_name": "璃记",
   "description": "说话，就记账。金额均为虚构示例数据。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f8f9fc",
-  "theme_color": "#f8f9fc",
+  "background_color": "#F8F9FC",
+  "theme_color": "#F8F9FC",
   "lang": "zh-CN",
   "icons": [
     {
@@ -20,6 +20,18 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/apple-touch-icon.png",
