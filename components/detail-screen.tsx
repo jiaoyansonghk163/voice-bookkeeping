@@ -3,7 +3,17 @@ import { categoryDetail } from "@/lib/categories";
 import { formatDetailStamp, formatYuan } from "@/lib/format";
 import type { Transaction } from "@/lib/types";
 
-export function DetailScreen({ transaction, now }: { transaction: Transaction | null; now: Date }) {
+export function DetailScreen({
+  transaction,
+  now,
+  onEdit,
+  onDelete,
+}: {
+  transaction: Transaction | null;
+  now: Date;
+  onEdit?: () => void;
+  onDelete?: (transaction: Transaction) => void;
+}) {
   if (!transaction) {
     return (
       <section className="panel block rise">
@@ -30,7 +40,7 @@ export function DetailScreen({ transaction, now }: { transaction: Transaction | 
         <h2 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 650 }}>{transaction.title}</h2>
         <div className="hero" style={{ margin: "18px 0 0" }}>
           <div className="sum num">
-            <small>¥</small>
+            <small>{transaction.kind === "income" ? "+¥" : "¥"}</small>
             {whole}.{dec}
           </div>
         </div>
@@ -44,11 +54,29 @@ export function DetailScreen({ transaction, now }: { transaction: Transaction | 
           <span className="k">来源</span>
           <span className="v">{transaction.source === "voice" ? "语音" : "示例"}</span>
         </div>
+        {transaction.note ? (
+          <div className="f">
+            <span className="k">备注</span>
+            <span className="v">{transaction.note}</span>
+          </div>
+        ) : null}
         <div className="f">
           <span className="k">原话</span>
           <span className="v">「{transaction.transcript}」</span>
         </div>
       </section>
+      <div className="detail-actions">
+        {onEdit ? (
+          <button type="button" className="primary wide press" onClick={onEdit}>
+            编辑
+          </button>
+        ) : null}
+        {onDelete ? (
+          <button type="button" className="edit-del" onClick={() => onDelete(transaction)}>
+            删除
+          </button>
+        ) : null}
+      </div>
     </>
   );
 }

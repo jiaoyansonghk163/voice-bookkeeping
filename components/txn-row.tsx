@@ -80,12 +80,18 @@ export function TxnRow({
           <span className="bill-main">
             <span className="bill-title">{transaction.title}</span>
             <span className="bill-sub">
-              {categoryLabel(transaction.category)} · {formatBillWhen(new Date(transaction.createdAt), now)}
+              {categoryLabel(transaction.category)}{transaction.note ? ` · ${transaction.note}` : ""} · {formatBillWhen(new Date(transaction.createdAt), now)}
             </span>
           </span>
-          <span className="bill-amt">
-            <span className="sr-only">支出 </span>-¥{formatYuan(transaction.amount)}
-          </span>
+          {transaction.kind === "income" ? (
+            <span className="bill-amt income">
+              <span className="sr-only">收入 </span>+¥{formatYuan(transaction.amount)}
+            </span>
+          ) : (
+            <span className="bill-amt">
+              <span className="sr-only">支出 </span>-¥{formatYuan(transaction.amount)}
+            </span>
+          )}
         </button>
         {canDelete && sliding ? (
           <button type="button" className="swipe-del" aria-label={`删除${transaction.title}`} onClick={() => onDelete?.(transaction)}>

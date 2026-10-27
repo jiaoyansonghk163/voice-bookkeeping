@@ -1,4 +1,4 @@
-import { ArrowDownLeft, Car, Clapperboard, Ellipsis, HeartPulse, House, ShoppingBag, Utensils, type LucideIcon } from "lucide-react";
+import { ArrowDown, Car, Clapperboard, Ellipsis, HeartPulse, House, ShoppingBag, Utensils, type LucideIcon } from "lucide-react";
 import { CATEGORIES, isIncomeCategory } from "@/lib/categories";
 import type { CategoryId } from "@/lib/types";
 
@@ -10,11 +10,11 @@ const ICONS: Record<CategoryId, LucideIcon> = {
   home: House,
   health: HeartPulse,
   other: Ellipsis,
-  salary: ArrowDownLeft,
-  bonus: ArrowDownLeft,
-  redpacket: ArrowDownLeft,
-  refund: ArrowDownLeft,
-  income_other: ArrowDownLeft,
+  salary: ArrowDown,
+  bonus: ArrowDown,
+  redpacket: ArrowDown,
+  refund: ArrowDown,
+  income_other: ArrowDown,
 };
 
 /** Category colours from the spec (solid for bars, 12% for icon blocks). */

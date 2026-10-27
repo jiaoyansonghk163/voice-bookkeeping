@@ -533,3 +533,54 @@ export function startListening(
     abort: release,
   };
 }
+
+/** Map a 0..1 RMS volume to the bar scaleY (10px..44px of a 44px bar). */
+export function levelToScale(rms: number, index = 0, count = 9): number {
+  const v = Math.max(0, Math.min(1, rms * 3.2));
+  const shape = 0.6 + 0.4 * Math.sin(((index + 0.5) / count) * Math.PI);
+  const px = 10 + 34 * Math.min(1, v * shape);
+  return px / 44;
+}
+
+/**
+ * Live microphone volume for the waveform. Returns null (caller keeps the fixed rhythm)
+ * on iOS/WebKit, where a second capture next to speech recognition can break it, and
+ * wherever AnalyserNode or getUserMedia is missing or refused.
+ */
+export async function startLevelMeter(onLevel: (rms: number) => void): Promise<(() => void) | null> {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return null;
+  if (detectSingleUtterance()) return null;
+  const AudioCtx =
+    window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx || !navigator.mediaDevices?.getUserMedia) return null;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const ctx = new AudioCtx();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const data = new Uint8Array(analyser.fftSize);
+    let raf = 0;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (const sample of data) {
+        const centered = (sample - 128) / 128;
+        sum += centered * centered;
+      }
+      onLevel(Math.sqrt(sum / data.length));
+      raf = window.requestAnimationFrame(tick);
+    };
+    tick();
+    return () => {
+      stopped = true;
+      window.cancelAnimationFrame(raf);
+      for (const track of stream.getTracks()) track.stop();
+      void ctx.close().catch(() => undefined);
+    };
+  } catch {
+    return null;
+  }
+}

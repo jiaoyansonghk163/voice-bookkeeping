@@ -1,46 +1,59 @@
+"use client";
+
+import { useState } from "react";
 import { CATEGORY_COLOR } from "@/components/category-icon";
+import { MonthSwitcher } from "@/components/month-switcher";
 import { CATEGORIES } from "@/lib/categories";
-import { formatYuanTrim, roundMoney } from "@/lib/format";
-import { breakdownByCategory, transactionsInMonth } from "@/lib/ledger";
+import { cn } from "@/lib/cn";
+import { formatYuanTrim } from "@/lib/format";
+import { barHeight, breakdownByCategory, expensesOf, incomeOf, sumAmounts, transactionsInMonth, weekTotals } from "@/lib/ledger";
 import type { Transaction } from "@/lib/types";
 
-function weekTotals(transactions: Transaction[], now: Date): number[] {
-  const totals = [0, 0, 0, 0];
-  for (const item of transactionsInMonth(transactions, now)) {
-    const day = new Date(item.createdAt).getDate();
-    totals[Math.min(3, Math.floor((day - 1) / 7))] += item.amount;
-  }
-  return totals.map((value) => roundMoney(value));
-}
-
 export function StatsScreen({ transactions, now }: { transactions: Transaction[]; now: Date }) {
-  const monthItems = transactionsInMonth(transactions, now);
-  const monthSpend = roundMoney(monthItems.reduce((sum, item) => sum + item.amount, 0));
-  const weeks = weekTotals(transactions, now);
+  const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+  const [mode, setMode] = useState<"expense" | "income">("expense");
+  const monthAll = transactionsInMonth(transactions, month);
+  const spend = sumAmounts(expensesOf(monthAll));
+  const income = sumAmounts(incomeOf(monthAll));
+  const items = mode === "income" ? incomeOf(monthAll) : expensesOf(monthAll);
+  const total = mode === "income" ? income : spend;
+  const weeks = weekTotals(items);
   const peak = Math.max(...weeks, 0);
-  const current = Math.min(3, Math.floor((now.getDate() - 1) / 7));
-  const slices = breakdownByCategory(monthItems);
-
+  const isNow = month.getFullYear() === now.getFullYear() && month.getMonth() === now.getMonth();
+  const current = isNow ? Math.min(3, Math.floor((now.getDate() - 1) / 7)) : -1;
+  const slices = breakdownByCategory(monthAll, mode);
   const grand = slices.reduce((sum, item) => sum + item.total, 0) || 1;
 
   return (
     <>
       <h1 className="page-title">统计</h1>
-      <p className="page-sub">本月 · {now.getMonth() + 1}月</p>
+      <div className="seg-capsule" role="tablist" aria-label="支出或收入">
+        {(["expense", "income"] as const).map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={mode === k} className={cn(mode === k && "on")} onClick={() => setMode(k)}>
+            {k === "expense" ? "支出" : "收入"}
+          </button>
+        ))}
+      </div>
+      <MonthSwitcher month={month} now={now} onChange={setMonth} />
       <section className="glass hero-card press">
-        <span className="lab">本月支出</span>
-        <div className="big">
+        <span className="lab">{mode === "income" ? "本月收入" : "本月支出"}</span>
+        <div className={cn("big", mode === "income" && "income")}>
           <sup>¥</sup>
-          {formatYuanTrim(monthSpend)}
+          {formatYuanTrim(total)}
         </div>
+        <p className="hero-note">
+          {mode === "income" ? `支出 ¥${formatYuanTrim(spend)}` : `收入 ¥${formatYuanTrim(income)}`}
+        </p>
         <div className="bars" aria-hidden="true">
-          {weeks.map((value, index) => {
-            const height = peak <= 0 ? 36 : Math.max(18, Math.round((value / peak) * 90));
-            return <i key={index} className={index === current ? "now" : undefined} style={{ height }} />;
-          })}
+          {weeks.map((value, index) => (
+            <div className="bar-col" key={index}>
+              <i className={index === current ? "now" : undefined} style={{ height: barHeight(value, peak) }} />
+              <span>第{index + 1}周</span>
+            </div>
+          ))}
         </div>
       </section>
-      <h2 className="section-title">分类占比</h2>
+      <h2 className="section-title">{mode === "income" ? "收入分类" : "支出分类"}</h2>
       {slices.length === 0 ? (
         <div className="glass empty-card">
           <b>这段时间还没有账</b>

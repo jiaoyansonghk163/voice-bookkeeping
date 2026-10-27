@@ -138,3 +138,19 @@ export function applyEdit(item: Transaction, patch: BillPatch, at: Date = new Da
   if (next.kind !== "income") delete next.kind;
   return next;
 }
+
+export function weekTotals(items: Transaction[]): number[] {
+  const totals = [0, 0, 0, 0];
+  for (const item of items) {
+    const day = new Date(item.createdAt).getDate();
+    totals[Math.min(3, Math.floor((day - 1) / 7))] += item.amount;
+  }
+  return totals.map((value) => roundMoney(value));
+}
+
+/** Bar height in px: proportional to the data (max 90), never below 18. */
+export function barHeight(value: number, peak: number): number {
+  if (peak <= 0) return 18;
+  return Math.max(18, Math.round((value / peak) * 90));
+}
+

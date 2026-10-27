@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { applyImport, parseBackup, serializeBackup, type ImportMode, type LedgerState } from "@/lib/backup";
 import { ChevronRight } from "lucide-react";
 import { categoryDetail } from "@/lib/categories";
+import { exportLedger } from "@/lib/export";
 import { formatDayGroup, formatYuanTrim } from "@/lib/format";
 
 export function MeScreen({
@@ -13,6 +14,9 @@ export function MeScreen({
   onClearDemo,
   onImport,
   onOpenBudget,
+  onExported,
+  canUndoImport = false,
+  onUndoImport,
   compact = false,
 }: {
   ledger: LedgerState;
@@ -21,6 +25,9 @@ export function MeScreen({
   onClearDemo: () => void;
   onImport: (next: LedgerState) => void;
   onOpenBudget: () => void;
+  onExported?: () => void;
+  canUndoImport?: boolean;
+  onUndoImport?: () => void;
   compact?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -30,27 +37,26 @@ export function MeScreen({
   const [busy, setBusy] = useState(false);
 
   const exportFile = () => {
-    const blob = new Blob([serializeBackup(ledger)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "闪记.json";
-    link.click();
-    URL.revokeObjectURL(url);
+    exportLedger(ledger);
+    onExported?.();
     setNote("已导出,文件不会上传。");
   };
+
+  const [skipped, setSkipped] = useState(0);
+  const [confirmReplace, setConfirmReplace] = useState(false);
 
   const importFile = async (file: File | undefined) => {
     if (!file) return;
     const next = parseBackup(await file.text());
     if (!next) {
       setPending(null);
-      setNote("这个文件不是闪记的备份。");
+      setNote("这个文件不是闪记的备份,或里面没有可读的账。");
       return;
     }
     applying.current = false;
     setBusy(false);
     setPending(next);
+    setSkipped(next.skipped);
     setNote("");
   };
 
@@ -61,21 +67,23 @@ export function MeScreen({
     const result = applyImport(ledger, pending, mode);
     onImport(result.ledger);
     setPending(null);
+    setConfirmReplace(false);
     if (mode === "append") {
       setNote(
         result.added === 0
           ? "没有新的账,这份里的都已记过。"
           : result.skipped > 0
-            ? `已追加 ${result.added} 笔,跳过 ${result.skipped} 笔重复。`
-            : `已追加 ${result.added} 笔,只写在这台设备上。`,
+            ? `已加进 ${result.added} 笔账,跳过 ${result.skipped} 笔重复。`
+            : `已加进 ${result.added} 笔账,只写在这台手机上。`,
       );
       return;
     }
-    setNote(`已替换为 ${result.added} 笔,只写在这台设备上。`);
+    setNote(`已覆盖为 ${result.added} 笔账,原来的账已另存,可撤销导入。`);
   };
 
   const cancelPreview = () => {
     if (applying.current) return;
+    setConfirmReplace(false);
     setPending(null);
   };
 
@@ -105,6 +113,15 @@ export function MeScreen({
           <Row label="预算" onClick={onOpenBudget} />
           <Row label="导出备份" onClick={exportFile} />
           <Row label="导入备份" onClick={() => fileRef.current?.click()} />
+          {canUndoImport && onUndoImport ? (
+            <Row
+              label="撤销导入"
+              onClick={() => {
+                onUndoImport();
+                setNote("已恢复导入前的账。");
+              }}
+            />
+          ) : null}
           <Row label={demoOn ? "移除示例数据" : "载入示例数据"} onClick={demoOn ? onClearDemo : onLoadDemo} />
         </div>
         <p className="fine">数据存在这台手机上,建议定期导出备份</p>
@@ -122,7 +139,7 @@ export function MeScreen({
         />
         {pending ? (
           <div className="import-preview" role="region" aria-label="导入预览">
-            <div className="count">共 {pending.transactions.length} 笔</div>
+            <div className="count">共 {pending.transactions.length} 笔账{skipped > 0 ? `,有 ${skipped} 笔读不了,已跳过` : ""}</div>
             {pending.monthlyBudget != null ? <p>预算 {formatYuanTrim(pending.monthlyBudget)}</p> : null}
             <ul className="import-rows">
               {pending.transactions.map((item, index) => (
@@ -131,18 +148,26 @@ export function MeScreen({
                   <span className="when">
                     {categoryDetail(item.category, item.subcategory)} · {formatDayGroup(new Date(item.createdAt), new Date())}
                   </span>
-                  <span className="amt">¥{formatYuanTrim(item.amount)}</span>
+                  <span className="amt">{item.kind === "income" ? "+" : ""}¥{formatYuanTrim(item.amount)}</span>
                 </li>
               ))}
             </ul>
-            <p>追加只加账单，预算不动。替换整份换掉。</p>
+            <p>{confirmReplace ? "导入会覆盖现有的账,确定吗?" : "加进现有的账:只加新的,预算不动。覆盖现有的账:换成这份,原来的会先另存,可撤销导入。"}</p>
             <div className="import-actions">
-              <button type="button" className="quiet-btn accent" disabled={busy} onClick={() => apply("append")}>
-                追加
-              </button>
-              <button type="button" className="quiet-btn" disabled={busy} onClick={() => apply("replace")}>
-                替换
-              </button>
+              {confirmReplace ? (
+                <button type="button" className="quiet-btn accent" disabled={busy} onClick={() => apply("replace")}>
+                  确定
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="quiet-btn accent" disabled={busy} onClick={() => apply("append")}>
+                    加进现有的账
+                  </button>
+                  <button type="button" className="quiet-btn" disabled={busy} onClick={() => setConfirmReplace(true)}>
+                    覆盖现有的账
+                  </button>
+                </>
+              )}
             </div>
             <button type="button" className="import-cancel" disabled={busy} onClick={cancelPreview}>
               取消

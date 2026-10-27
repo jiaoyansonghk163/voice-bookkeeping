@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import type { LedgerState } from "@/lib/backup";
+import { exportLedger } from "@/lib/export";
 import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
 import { BottomNav, MicButton, type TabId } from "@/components/bottom-nav";
 import { BudgetScreen } from "@/components/budget-screen";
+import { EditSheet } from "@/components/edit-sheet";
 import { DetailScreen } from "@/components/detail-screen";
 import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
@@ -72,6 +74,7 @@ function Shell() {
   const [toast, setToast] = useState<
     { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
   >(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
   const saveGate = useRef(createSaveGate());
   const [now] = useState(() => new Date());
@@ -180,11 +183,20 @@ function Shell() {
         transactions={store.transactions}
         now={now}
         highlightIds={store.highlightIds}
-        onOpen={(id) => go({ name: "detail", id })}
+        onOpen={(id) => setEditId(id)}
         onDelete={deleteTransaction}
         onAll={() => go({ name: "all" })}
         onBudget={() => go({ name: "budget" })}
         monthlyBudget={store.monthlyBudget}
+        reminder={{
+          lastExportAt: store.meta.lastExportAt,
+          dismissedAt: store.meta.reminderDismissedAt,
+          onExport: () => {
+            exportLedger({ transactions: store.transactions, monthlyBudget: store.monthlyBudget });
+            store.markExported();
+          },
+          onDismiss: store.dismissReminder,
+        }}
       />
     );
   } else if (route.name === "all") {
@@ -193,7 +205,7 @@ function Shell() {
         transactions={store.transactions}
         now={now}
         highlightIds={store.highlightIds}
-        onOpen={(id) => go({ name: "detail", id })}
+        onOpen={(id) => setEditId(id)}
         onDelete={deleteTransaction}
       />
     );
@@ -217,12 +229,25 @@ function Shell() {
         onLoadDemo={store.loadDemo}
         onClearDemo={store.clearDemo}
         onImport={store.replaceLedger}
+        onExported={store.markExported}
+        canUndoImport={store.canUndoImport}
+        onUndoImport={store.undoImport}
         onOpenBudget={() => go({ name: "budget" })}
       />
     );
   } else {
     const transaction = store.transactions.find((item) => item.id === route.id) ?? null;
-    screen = <DetailScreen transaction={transaction} now={now} />;
+    screen = (
+      <DetailScreen
+        transaction={transaction}
+        now={now}
+        onEdit={() => setEditId(route.id)}
+        onDelete={(item) => {
+          deleteTransaction(item);
+          go({ name: "home" });
+        }}
+      />
+    );
   }
 
   return (
@@ -271,6 +296,18 @@ function Shell() {
             onClose={() => setVoiceOpen(false)}
             onCommit={commitVoice}
           />
+          <EditSheet
+            transaction={editId ? (store.transactions.find((item) => item.id === editId) ?? null) : null}
+            onClose={() => setEditId(null)}
+            onSave={store.update}
+            onDelete={deleteTransaction}
+          />
+          {store.saveFailed ? (
+            <div className="toast fail" role="alert">
+              <span>保存失败</span>
+              <span className="toast-sub">请导出备份,以免丢失</span>
+            </div>
+          ) : null}
           {toast ? (
             <div className="toast" role="status">
               <span>{toast.kind === "delete" ? "已删除" : `已记 ${toast.transactions.length} 笔`}</span>

@@ -5,14 +5,16 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { MicButton } from "@/components/bottom-nav";
 import {
   captureMode,
+  levelToScale,
   prepareMicrophone,
+  startLevelMeter,
   speechRecognitionSupported,
   startListening,
   type ListenSession,
 } from "@/lib/asr";
-import { CATEGORY_ORDER, CATEGORIES, defaultPick } from "@/lib/categories";
+import { categoriesFor, CATEGORIES, defaultPick } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { commitOrDrop, createdAtFromDay, stageUtterance, type EditableDraft } from "@/lib/drafts";
+import { commitOrDrop, createdAtFromDay, dayString, setDraftKind, stageUtterance, type EditableDraft } from "@/lib/drafts";
 import {
   BACKDROP_IN_S,
   BANNER_S,
@@ -24,6 +26,7 @@ import {
   SHEET_SPRING,
   VOICE_BARS,
 } from "@/lib/motion";
+import { DayChips } from "@/components/day-chips";
 import { VOICE_COPY, sourceLine } from "@/lib/voice-copy";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
 /** Last resort if recognition never starts and never errors. The session has its own shorter timer. */
@@ -39,20 +42,56 @@ interface DraftEntry extends EditableDraft {
 
 function VoiceWave({ active }: { active: boolean }) {
   const reduce = useReducedMotion();
+  const bars = useRef<Array<HTMLElement | null>>([]);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    if (!active || reduce) return;
+    let stop: (() => void) | null = null;
+    let gone = false;
+    let smooth = 0;
+    void startLevelMeter((rms) => {
+      smooth = smooth * 0.6 + rms * 0.4;
+      bars.current.forEach((node, index) => {
+        if (!node) return;
+        // each bar leans a little differently so it reads as a waveform
+        const jitter = 0.85 + 0.3 * Math.abs(Math.sin(performance.now() / 140 + index * 1.7));
+        node.style.transform = `scaleY(${levelToScale(smooth * jitter, index, VOICE_BARS.length)})`;
+      });
+    }).then((handle) => {
+      if (!handle) return;
+      if (gone) {
+        handle();
+        return;
+      }
+      stop = handle;
+      setLive(true);
+    });
+    return () => {
+      gone = true;
+      stop?.();
+      setLive(false);
+    };
+  }, [active, reduce]);
+
   return (
     <div className="vwave" aria-hidden="true">
-      {VOICE_BARS.map((peak, index) => (
-        <motion.i
-          key={index}
-          initial={{ scaleY: 0.25 }}
-          animate={reduce || !active ? { scaleY: peak } : { scaleY: [0.25, peak, 0.3, peak * 0.8, 0.25] }}
-          transition={
-            reduce || !active
-              ? { duration: 0.12 }
-              : { duration: 1.1 + (index % 3) * 0.15, ease: "easeInOut", repeat: Infinity, delay: index * 0.07 }
-          }
-        />
-      ))}
+      {VOICE_BARS.map((peak, index) =>
+        live ? (
+          <i key={index} ref={(node) => { bars.current[index] = node; }} style={{ transform: `scaleY(${10 / 44})`, transition: "transform 80ms linear" }} />
+        ) : (
+          <motion.i
+            key={index}
+            initial={{ scaleY: 0.25 }}
+            animate={reduce || !active ? { scaleY: peak } : { scaleY: [0.25, peak, 0.3, peak * 0.8, 0.25] }}
+            transition={
+              reduce || !active
+                ? { duration: 0.12 }
+                : { duration: 1.1 + (index % 3) * 0.15, ease: "easeInOut", repeat: Infinity, delay: index * 0.07 }
+            }
+          />
+        ),
+      )}
     </div>
   );
 }
@@ -567,6 +606,19 @@ function ConfirmEntries({
                 onChange={(event) => onChange(entry.key, { amount: event.target.value })}
               />
             </label>
+            <div className="kind-seg" role="group" aria-label="收支">
+              {(["expense", "income"] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className={cn(entry.kind === kind && "on")}
+                  onClick={() => onChange(entry.key, setDraftKind(entry, kind))}
+                >
+                  {kind === "expense" ? "支出" : "收入"}
+                </button>
+              ))}
+            </div>
+            <DayChips day={entry.day} onChange={(day) => onChange(entry.key, { day })} />
             <div className="confirm-fields">
               <button type="button" className="field-chip" aria-label={VOICE_COPY.category} onClick={() => onPick(entry.key)}>
                 {CATEGORIES[entry.category].label}
@@ -580,7 +632,7 @@ function ConfirmEntries({
             </div>
             {picking === entry.key ? (
               <div className="cat-pop" role="group" aria-label={VOICE_COPY.category}>
-                {CATEGORY_ORDER.map((id) => (
+                {categoriesFor(entry.kind).map((id) => (
                   <button
                     key={id}
                     type="button"

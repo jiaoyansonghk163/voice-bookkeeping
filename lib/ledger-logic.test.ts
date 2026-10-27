@@ -12,7 +12,7 @@ import {
   type LedgerState,
 } from "./backup";
 import { commitOrDrop, setDraftKind, stageUtterance } from "./drafts";
-import { applyEdit, breakdownByCategory, filterBills, groupByDay, shiftMonth, transactionsInMonth } from "./ledger";
+import { applyEdit, barHeight, weekTotals, breakdownByCategory, filterBills, groupByDay, shiftMonth, transactionsInMonth } from "./ledger";
 import { presentKpis } from "./metrics";
 import { parseTranscript } from "./parse-transcript";
 import type { Transaction } from "./types";
@@ -160,4 +160,13 @@ test("editing a bill", () => {
   const back = applyEdit(inc, { kind: "expense", category: "food" }, NOW);
   assert.equal("kind" in back, false);
   assert.equal("note" in applyEdit(edited, { note: " " }, NOW), false);
+});
+
+test("stats bars are proportional with a floor of 18 and a max of 90", () => {
+  assert.equal(barHeight(100, 100), 90);
+  assert.equal(barHeight(50, 100), 45);
+  assert.equal(barHeight(1, 100), 18);
+  assert.equal(barHeight(0, 0), 18);
+  const weeks = weekTotals([tx("a", 10), tx("b", 5, { createdAt: new Date(2026, 9, 25, 9).toISOString() })]);
+  assert.deepEqual(weeks, [0, 0, 10, 5]);
 });

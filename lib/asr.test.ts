@@ -592,3 +592,12 @@ test("microphone grant is reused and a denial is not asked again", async () => {
   assert.equal(await second, "granted");
   assert.equal(parallelRequests, 1);
 });
+
+import { levelToScale } from "./asr";
+test("levelToScale stays within 10..44px of a 44px bar", () => {
+  for (let i = 0; i < 9; i += 1) {
+    assert.ok(levelToScale(0, i) >= 10 / 44 - 1e-9);
+    assert.ok(levelToScale(1, i) <= 1 + 1e-9);
+  }
+  assert.ok(levelToScale(0.2, 4) > levelToScale(0.02, 4));
+});
