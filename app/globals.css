@@ -2430,6 +2430,7 @@ button:active { transition-timing-function: var(--spring); }
 .bill-amt.income { color: #0B7F73; }
 .small-card b .dec, .hero-card .big .dec { font-size: 24px; font-weight: 600; color: #5B6670; letter-spacing: 0; }
 .small-card b .dec { font-size: 14px; }
+.small-card b { display: inline-flex; align-items: baseline; white-space: nowrap; }
 .small-card b.income { color: #0B7F73; }
 .hero-card .big.income { color: #0B7F73; }
 .budget-prompt { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; color: #5B6670; }
