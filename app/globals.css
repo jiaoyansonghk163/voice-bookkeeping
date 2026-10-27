@@ -2533,3 +2533,5 @@ button:active { transition-timing-function: var(--spring); }
 @keyframes mic-breathe { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.15); opacity: 0.2; } }
 @media (prefers-reduced-motion: reduce) { .mic-ring { animation: none; } .tab .ti:active { transform: none; } }
 .scroll.page { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+.me .avatar, .me-head .avatar { overflow: hidden; border-radius: 14px; background: #0A0A0A; }
+.me-head .avatar svg { display: block; }

@@ -102,7 +102,10 @@ export function MeScreen({
       {compact ? null : (
         <div className="me-head">
           <div className="avatar" aria-hidden="true">
-            闪
+            <svg viewBox="0 0 512 512" width="56" height="56">
+              <rect width="512" height="512" fill="#0A0A0A" />
+              <path d="M292 96 168 288h88l-36 128 124-192h-88Z" fill="#FFFFFF" />
+            </svg>
           </div>
           <div>
             <b>闪记</b>
