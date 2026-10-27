@@ -5,6 +5,7 @@ import { applyImport, parseBackup, serializeBackup, type ImportMode, type Ledger
 import { ChevronRight } from "lucide-react";
 import { categoryDetail } from "@/lib/categories";
 import { exportLedger } from "@/lib/export";
+import { readKeyboardDictation, writeKeyboardDictation } from "@/lib/settings";
 import { formatDayGroup, formatYuanTrim } from "@/lib/format";
 
 export function MeScreen({
@@ -35,6 +36,7 @@ export function MeScreen({
   const [note, setNote] = useState("");
   const [pending, setPending] = useState<LedgerState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dictation, setDictation] = useState(() => readKeyboardDictation());
 
   const exportFile = () => {
     exportLedger(ledger);
@@ -110,6 +112,24 @@ export function MeScreen({
       )}
       <div className="stack">
         <div className="glass set-list">
+          <div className="set-row set-toggle">
+            <span id="dictation-label">用键盘听写</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={dictation}
+              aria-labelledby="dictation-label"
+              aria-describedby="dictation-help"
+              className={dictation ? "switch on" : "switch"}
+              onClick={() => {
+                const next = !dictation;
+                setDictation(next);
+                writeKeyboardDictation(next);
+              }}
+            >
+              <i />
+            </button>
+          </div>
           <Row label="预算" onClick={onOpenBudget} />
           <Row label="导出备份" onClick={exportFile} />
           <Row label="导入备份" onClick={() => fileRef.current?.click()} />
@@ -124,6 +144,7 @@ export function MeScreen({
           ) : null}
           <Row label={demoOn ? "移除示例数据" : "载入示例数据"} onClick={demoOn ? onClearDemo : onLoadDemo} />
         </div>
+        <p className="fine" id="dictation-help">点说一句时直接弹出键盘,用键盘上的麦克风听写,不会反复询问麦克风权限</p>
         <p className="fine">数据存在这台手机上,建议定期导出备份</p>
         <input
           ref={fileRef}

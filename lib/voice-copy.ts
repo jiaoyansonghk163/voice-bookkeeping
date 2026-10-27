@@ -13,6 +13,7 @@ export const VOICE_COPY = {
   typeTitle: "记一笔",
   typeHint: "写一句,比如:午饭 28 块",
   typePlaceholder: "午饭 28 块",
+  dictationPlaceholder: "点键盘上的麦克风说话,比如:午饭 28 块",
   clear: "清空",
   cancel: "取消",
   typeDone: "记下",

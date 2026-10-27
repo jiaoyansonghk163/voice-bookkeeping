@@ -101,11 +101,13 @@ export function VoiceSheet({
   onClose,
   onCommit,
   presetCategory = null,
+  dictation = false,
 }: {
   open: boolean;
   onClose: () => void;
   onCommit: (expenses: ParsedExpense[], at: Date) => void;
   presetCategory?: CategoryId | null;
+  dictation?: boolean;
 }) {
   const session = useRef(0);
   const listenRef = useRef<ListenSession | null>(null);
@@ -114,7 +116,7 @@ export function VoiceSheet({
   const onCloseRef = useRef(onClose);
   const wantSpeech = useRef(false);
   const [phase, setPhase] = useState<"capture" | "review">("capture");
-  const [capture, setCapture] = useState<Capture>(presetCategory ? "type" : "listen");
+  const [capture, setCapture] = useState<Capture>(presetCategory || dictation ? "type" : "listen");
   const [transcript, setTranscript] = useState("");
   const [typed, setTyped] = useState("");
   const [entries, setEntries] = useState<DraftEntry[]>([]);
@@ -198,6 +200,10 @@ export function VoiceSheet({
   };
 
   const startRecording = () => {
+    if (dictation) {
+      switchToType("");
+      return;
+    }
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     if (!speechRecognitionSupported()) return;
     wantSpeech.current = true;
@@ -269,7 +275,7 @@ export function VoiceSheet({
 
     const speak = wantSpeech.current;
     wantSpeech.current = false;
-    if (presetCategory && !speak) {
+    if (dictation || (presetCategory && !speak)) {
       setCapture("type");
       return cleanup;
     }
@@ -335,7 +341,7 @@ export function VoiceSheet({
     })();
 
     return cleanup;
-  }, [open, run, presetCategory]);
+  }, [open, run, presetCategory, dictation]);
 
   useEffect(() => {
     return () => {
@@ -430,6 +436,7 @@ export function VoiceSheet({
         onClear={clearTyped}
         onFinish={finish}
         onRecord={startRecording}
+        dictation={dictation}
       />
     );
   }
@@ -510,6 +517,7 @@ function TypeStage({
   onClear,
   onFinish,
   onRecord,
+  dictation,
 }: {
   typed: string;
   keyLift: number;
@@ -517,6 +525,7 @@ function TypeStage({
   onClear: () => void;
   onFinish: () => void;
   onRecord: () => void;
+  dictation: boolean;
 }) {
   const empty = !typed.trim();
   return (
@@ -527,7 +536,8 @@ function TypeStage({
         <textarea
           className="typebox"
           value={typed}
-          placeholder={VOICE_COPY.typePlaceholder}
+          placeholder={dictation ? VOICE_COPY.dictationPlaceholder : VOICE_COPY.typePlaceholder}
+          autoFocus={dictation}
           aria-label={VOICE_COPY.typeTitle}
           rows={3}
           onChange={(event) => onChange(event.target.value)}
@@ -541,12 +551,14 @@ function TypeStage({
           </button>
         </div>
       </div>
+      {dictation ? null : (
       <button type="button" className="record" aria-label={VOICE_COPY.startMic} onClick={onRecord}>
         <span className="face" aria-hidden="true">
           <MicMark />
         </span>
         {VOICE_COPY.startMic}
       </button>
+      )}
     </div>
   );
 }
