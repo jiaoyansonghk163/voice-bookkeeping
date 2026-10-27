@@ -642,10 +642,13 @@ function ListeningMic() {
 
 function MicMark() {
   return (
-    <svg width="22" height="30" viewBox="0 0 22 30" aria-hidden="true">
-      <rect x="2" y="1" width="18" height="16" rx="8" fill="#fff" />
-      <path d="M2 13a9 9 0 0 0 18 0" fill="none" stroke="#fff" strokeWidth="2" />
-      <path d="M11 22v6" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+      <g stroke="#fff" strokeWidth="3.5" strokeLinecap="round">
+        <path d="M4 8v8" />
+        <path d="M9.5 3v18" />
+        <path d="M15 6.5v11" />
+        <path d="M20.5 9v6" />
+      </g>
     </svg>
   );
 }

@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "璃记",
+  title: "闪记",
   description: "说话，就记账。界面演示，金额均为虚构示例数据。",
-  applicationName: "璃记",
+  applicationName: "闪记",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "璃记",
+    title: "闪记",
   },
   icons: {
     icon: [
@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F8F9FC",
+  themeColor: "#F4F6F8",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

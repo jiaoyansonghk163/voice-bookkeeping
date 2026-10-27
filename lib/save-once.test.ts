@@ -17,16 +17,16 @@ test("a later mic open is a new session and can persist", () => {
   assert.equal(gate.claim("voice-2"), false);
 });
 
-test("the install name is 璃记 and a maskable icon is declared", () => {
+test("the install name is 闪记 and a maskable icon is declared", () => {
   const manifest = JSON.parse(readFileSync(new URL("../public/manifest.webmanifest", import.meta.url), "utf8")) as {
     name: string;
     short_name: string;
     icons: { src: string; purpose: string }[];
   };
-  assert.equal(manifest.name, "璃记");
-  assert.equal(manifest.short_name, "璃记");
-  assert.equal((manifest as { theme_color?: string }).theme_color, "#F8F9FC");
-  assert.equal((manifest as { background_color?: string }).background_color, "#F8F9FC");
+  assert.equal(manifest.name, "闪记");
+  assert.equal(manifest.short_name, "闪记");
+  assert.equal((manifest as { theme_color?: string }).theme_color, "#F4F6F8");
+  assert.equal((manifest as { background_color?: string }).background_color, "#F4F6F8");
   assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable" && icon.src.includes("512")));
   assert.ok(manifest.icons.some((icon) => icon.purpose === "maskable" && icon.src.includes("192")));
 });

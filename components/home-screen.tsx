@@ -24,7 +24,7 @@ export function HomeScreen({
 
   return (
     <>
-      <h1 className="page-title">璃记</h1>
+      <h1 className="page-title">闪记</h1>
       <p className="page-sub">{formatTodayLine(now)}</p>
       <section className="kpi-row">
         <article className="kpi-card">
