@@ -24,11 +24,13 @@ function MicGlyph() {
 export function MicButton({
   onClick,
   stop = false,
+  indicate = false,
   label,
   className,
 }: {
   onClick: () => void;
   stop?: boolean;
+  indicate?: boolean;
   label: string;
   className?: string;
 }) {
@@ -49,8 +51,9 @@ export function MicButton({
         animate={{ scale: pressed && !reduce ? 0.96 : 1 }}
         transition={pressed ? { duration: FAB_PRESS_S, ease: "easeOut" } : { duration: FAB_RELEASE_S, ease: EASE_A }}
       >
-        <MicGlyph />
+        {stop && indicate ? <span className="mic-stop-sq" aria-hidden="true" /> : <MicGlyph />}
       </motion.button>
+      {stop && indicate ? <span className="mic-ring" aria-hidden="true" /> : null}
     </span>
   );
 }
@@ -62,30 +65,49 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: "me", label: "我的", Icon: User },
 ];
 
-export function BottomNav({ current, onChange }: { current: TabId; onChange: (tab: TabId) => void }) {
+export function BottomNav({
+  current,
+  onChange,
+  onRecord,
+  recording = false,
+  recordLabel = "说一句记一笔",
+}: {
+  current: TabId;
+  onChange: (tab: TabId) => void;
+  onRecord: () => void;
+  recording?: boolean;
+  recordLabel?: string;
+}) {
   const reduce = useReducedMotion();
+  const tab = ({ id, label, Icon }: (typeof TABS)[number]) => (
+    <button
+      key={id}
+      type="button"
+      role="tab"
+      aria-selected={current === id}
+      className={cn("ti", current === id && "on")}
+      onClick={() => onChange(id)}
+    >
+      {current === id ? (
+        <motion.span
+          layoutId="tab-indicator"
+          className="ti-pill"
+          transition={reduce ? { duration: 0.12 } : NAV_SPRING}
+        />
+      ) : null}
+      <Icon size={24} strokeWidth={2} aria-hidden="true" className="ti-ic" />
+      <span className="ti-lab">{label}</span>
+    </button>
+  );
   return (
     <nav className="tab" aria-label="主导航" role="tablist">
-      {TABS.map(({ id, label, Icon }, index) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={current === id}
-          className={cn("ti", current === id && "on", index >= 2 && "after-mic")}
-          onClick={() => onChange(id)}
-        >
-          {current === id ? (
-            <motion.span
-              layoutId="tab-indicator"
-              className="ti-pill"
-              transition={reduce ? { duration: 0.12 } : NAV_SPRING}
-            />
-          ) : null}
-          <Icon size={18} strokeWidth={2} aria-hidden="true" className="ti-ic" />
-          <span className="ti-lab">{label}</span>
-        </button>
-      ))}
+      {tab(TABS[0])}
+      {tab(TABS[1])}
+      <div className="ti-mic" role="presentation">
+        <MicButton label={recordLabel} stop={recording} indicate onClick={onRecord} />
+      </div>
+      {tab(TABS[2])}
+      {tab(TABS[3])}
     </nav>
   );
 }

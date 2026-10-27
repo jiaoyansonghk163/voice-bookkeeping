@@ -2484,3 +2484,52 @@ button:active { transition-timing-function: var(--spring); }
 .toast.fail { background: #C8452F; flex-direction: column; align-items: flex-start; gap: 2px; }
 .toast .toast-sub { font-size: 12px; opacity: 0.9; }
 .bars .bar-col i { flex: none; border-radius: 10px; }
+
+/* keyboard dictation */
+.kb-proxy { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; pointer-events: none; }
+.set-toggle { cursor: default; }
+.switch { position: relative; width: 51px; height: 31px; border-radius: 16px; background: rgba(20, 24, 27, 0.18); transition: background 0.2s; flex: none; }
+.switch i { position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); transition: transform 0.2s; }
+.switch.on { background: #0B7F73; }
+.switch.on i { transform: translateX(20px); }
+@media (prefers-reduced-motion: reduce) { .switch, .switch i { transition: none; } }
+
+/* ---- nav v3: single glass capsule, record button inside centre cell ---- */
+.tab {
+  left: 16px; right: 16px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  height: 72px; border-radius: 36px; padding: 0;
+  display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px rgba(20, 40, 50, 0.12);
+  z-index: 6;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tab { background: rgba(255, 255, 255, 0.94); }
+}
+.tab .ti, .tab .ti-mic {
+  grid-column: auto; position: relative; width: 100%; max-width: none; height: 72px; min-height: 56px; min-width: 56px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  justify-self: stretch; border-radius: 0; color: rgba(20, 24, 27, 0.85);
+  transition: transform 120ms ease-out;
+}
+.tab .ti:active { transform: scale(0.96); }
+.tab .ti.on { color: #0B7F73; font-weight: 600; }
+.tab .ti-ic { position: relative; width: 24px; height: 24px; }
+.tab .ti-lab { position: relative; font-size: 10px; font-weight: 600; line-height: 1; }
+.tab .ti-pill {
+  position: absolute; left: 50%; top: 50%; width: 76px; height: 56px; margin: -28px 0 0 -38px; border-radius: 28px;
+  background: rgba(255, 255, 255, 0.75); border: 1px solid #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(11, 127, 115, 0.15);
+}
+.tab .mic-anchor { position: relative; left: auto; bottom: auto; transform: none; width: 52px; height: 52px; display: block; z-index: auto; }
+.tab .mic { width: 52px; height: 52px; border-radius: 26px; box-shadow: 0 6px 14px rgba(11, 127, 115, 0.35); position: relative; }
+.tab .mic svg { width: 24px; height: 24px; }
+.mic-stop-sq { display: block; width: 18px; height: 18px; border-radius: 4px; background: #fff; margin: 0 auto; }
+.mic-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid #0B7F73; pointer-events: none; animation: mic-breathe 1.2s ease-in-out infinite; }
+@keyframes mic-breathe { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.15); opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .mic-ring { animation: none; } .tab .ti:active { transform: none; } }
+.scroll.page { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }

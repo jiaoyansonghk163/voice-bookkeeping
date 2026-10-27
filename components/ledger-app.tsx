@@ -6,7 +6,7 @@ import type { LedgerState } from "@/lib/backup";
 import { exportLedger } from "@/lib/export";
 import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
-import { BottomNav, MicButton, type TabId } from "@/components/bottom-nav";
+import { BottomNav, type TabId } from "@/components/bottom-nav";
 import { BudgetScreen } from "@/components/budget-screen";
 import { EditSheet } from "@/components/edit-sheet";
 import { DetailScreen } from "@/components/detail-screen";
@@ -14,6 +14,7 @@ import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
 import { EASE_A, TAB_FADE_S } from "@/lib/motion";
+import { readKeyboardDictation } from "@/lib/settings";
 import { StoreProvider, useStore } from "@/lib/store";
 import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
@@ -70,6 +71,8 @@ function Shell() {
   const [mounted, setMounted] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceSession, setVoiceSession] = useState(0);
+  const [dictation, setDictation] = useState(false);
+  const kbProxy = useRef<HTMLInputElement>(null);
   const [presetCategory, setPresetCategory] = useState<CategoryId | null>(null);
   const [toast, setToast] = useState<
     { kind: "delete"; transaction: Transaction } | { kind: "added"; transactions: Transaction[] } | null
@@ -117,6 +120,14 @@ function Shell() {
   }, []);
 
   const openVoice = (category?: CategoryId) => {
+    const dictate = readKeyboardDictation();
+    if (dictate) {
+      // iOS only raises the keyboard for focus() inside the user gesture. The sheet's
+      // textarea mounts later, so focus an always-mounted proxy now; the textarea then
+      // takes focus (autoFocus) while the keyboard is already up.
+      kbProxy.current?.focus({ preventScroll: true });
+    }
+    setDictation(dictate);
     setPresetCategory(typeof category === "string" ? category : null);
     setVoiceSession((value) => value + 1);
     setVoiceOpen(true);
@@ -286,10 +297,11 @@ function Shell() {
             </motion.div>
           </main>
 
-          {showChrome && <MicButton label="说一句记一笔" onClick={() => openVoice()} />}
-          {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
+          {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} onRecord={() => openVoice()} />}
 
+          <input ref={kbProxy} className="kb-proxy" aria-hidden="true" tabIndex={-1} readOnly={false} inputMode="text" />
           <VoiceSheet
+            dictation={dictation}
             key={voiceSession}
             open={voiceOpen}
             presetCategory={presetCategory}
