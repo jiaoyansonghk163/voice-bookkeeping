@@ -17,6 +17,8 @@ const HOME: Tone = { bg: "#fff6e0", fg: "#f59e0b", glyph: "home" };
 const HEALTH: Tone = { bg: "#e6faf6", fg: "#14b8a6", glyph: "health" };
 const OTHER: Tone = { bg: "#f1f5f9", fg: "#64748b", glyph: "other" };
 
+const INCOME: Tone = { bg: "#0B7F731f", fg: "#0B7F73", glyph: "other" };
+
 const BY_CATEGORY: Record<CategoryId, Tone> = {
   food: FOOD,
   transit: TRANSIT,
@@ -25,6 +27,11 @@ const BY_CATEGORY: Record<CategoryId, Tone> = {
   home: HOME,
   health: HEALTH,
   other: OTHER,
+  salary: INCOME,
+  bonus: INCOME,
+  redpacket: INCOME,
+  refund: INCOME,
+  income_other: INCOME,
 };
 
 export function toneFor(_title: string, category: CategoryId): Tone {

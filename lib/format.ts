@@ -86,3 +86,9 @@ export function formatDetailStamp(date: Date, now: Date): string {
 export function roundMoney(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
+
+export function dayString(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}

@@ -1,7 +1,7 @@
-import { defaultPick } from "./categories";
+import { categoriesFor, defaultPick } from "./categories";
 import { parseTranscript } from "./parse-transcript";
-import { roundMoney } from "./format";
-import type { CategoryId, ParsedExpense } from "./types";
+import { dayString, roundMoney } from "./format";
+import type { CategoryId, EntryKind, ParsedExpense } from "./types";
 
 export interface EditableDraft {
   amount: string;
@@ -12,6 +12,7 @@ export interface EditableDraft {
   source: string;
   confidence: "high" | "low";
   day: string;
+  kind: EntryKind;
 }
 
 export interface OpenDraft {
@@ -21,15 +22,11 @@ export interface OpenDraft {
 
 function readAmount(text: string): number | null {
   const value = Number(text.replace(/[¥￥,\s]/g, ""));
-  if (!Number.isFinite(value) || value <= 0 || value > 99_999) return null;
+  if (!Number.isFinite(value) || value <= 0 || value > 9_999_999) return null;
   return roundMoney(value);
 }
 
-export function dayString(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
+export { dayString };
 
 export function createdAtFromDay(day: string, clock: Date): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
@@ -43,17 +40,19 @@ export function createdAtFromDay(day: string, clock: Date): string {
 export function stageUtterance(text: string, now = new Date(), preset?: CategoryId | null): OpenDraft | null {
   const parsed = parseTranscript(text, now);
   if (!parsed.ok) return null;
+  const today = dayString(now);
   return {
     transcript: parsed.transcript,
     entries: parsed.entries.map((entry) => ({
       amount: String(entry.amount),
-      category: preset ?? entry.category,
-      subcategory: preset ? defaultPick(preset, now) : entry.subcategory,
+      category: preset && entry.kind !== "income" ? preset : entry.category,
+      subcategory: preset && entry.kind !== "income" ? defaultPick(preset, now) : entry.subcategory,
       title: entry.title,
       transcript: parsed.transcript,
       source: entry.source?.trim() || parsed.transcript,
       confidence: entry.confidence === "low" ? "low" : "high",
-      day: dayString(now),
+      day: entry.day ?? today,
+      kind: entry.kind === "income" ? "income" : "expense",
     })),
   };
 }
@@ -77,9 +76,11 @@ export function confirmEditable(entries: EditableDraft[]): ParsedExpense[] | nul
     expenses.push({
       amount,
       category: entry.category,
-      subcategory: entry.category === "shopping" ? "" : entry.subcategory,
+      subcategory: entry.category === "shopping" || entry.kind === "income" ? "" : entry.subcategory,
       title,
       transcript: entry.transcript,
+      ...(entry.kind === "income" ? { kind: "income" as const } : {}),
+      day: entry.day,
     });
   }
   return expenses;
@@ -95,4 +96,11 @@ export function commitOrDrop(action: DraftAction, entries: EditableDraft[]): Par
 
 export function sumEditable(entries: EditableDraft[]): number {
   return roundMoney(entries.reduce((sum, entry) => sum + (readAmount(entry.amount) ?? 0), 0));
+}
+
+/** Switch a draft between 支出 and 收入, moving it to a category that fits. */
+export function setDraftKind<T extends EditableDraft>(entry: T, kind: EntryKind, now = new Date()): T {
+  if (entry.kind === kind) return entry;
+  const category = categoriesFor(kind)[0];
+  return { ...entry, kind, category, subcategory: defaultPick(category, now) };
 }
