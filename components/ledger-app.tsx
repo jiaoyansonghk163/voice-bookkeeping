@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import type { LedgerState } from "@/lib/backup";
 import { createSaveGate } from "@/lib/save-once";
 import { AllScreen, HomeScreen } from "@/components/home-screen";
@@ -11,7 +11,7 @@ import { DetailScreen } from "@/components/detail-screen";
 import { MeScreen } from "@/components/me-screen";
 import { StatsScreen } from "@/components/stats-screen";
 import { VoiceSheet } from "@/components/voice-sheet";
-import { EASE_A, TAB_S } from "@/lib/motion";
+import { EASE_A, TAB_FADE_S } from "@/lib/motion";
 import { StoreProvider, useStore } from "@/lib/store";
 import type { CategoryId, ParsedExpense, Transaction } from "@/lib/types";
 
@@ -47,7 +47,8 @@ function hrefFor(route: Route): string {
 
 function tabFor(route: Route): TabId {
   if (route.name === "stats") return "stats";
-  if (route.name === "me" || route.name === "budget") return "me";
+  if (route.name === "me") return "me";
+  if (route.name === "budget") return "budget";
   return "home";
 }
 
@@ -61,6 +62,7 @@ export function LedgerApp() {
 
 function Shell() {
   const store = useStore();
+  const reduce = useReducedMotion();
   const scrollRef = useRef<HTMLElement>(null);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [mounted, setMounted] = useState(false);
@@ -160,7 +162,7 @@ function Shell() {
     return () => node.removeEventListener("scroll", onScroll);
   }, [ready, route.name]);
   const showChrome = route.name !== "detail" && !voiceOpen;
-  const pageTitle = route.name === "home" || route.name === "stats" || route.name === "me";
+  const pageTitle = route.name === "home" || route.name === "stats" || route.name === "me" || route.name === "budget";
   const title =
     route.name === "budget"
       ? "预算"
@@ -169,7 +171,7 @@ function Shell() {
         : route.name === "all"
           ? "全部账单"
           : "明细";
-  const showBack = route.name === "detail" || route.name === "all" || route.name === "budget";
+  const showBack = route.name === "detail" || route.name === "all";
 
   let screen = null;
   if (route.name === "home") {
@@ -180,6 +182,9 @@ function Shell() {
         highlightIds={store.highlightIds}
         onOpen={(id) => go({ name: "detail", id })}
         onDelete={deleteTransaction}
+        onAll={() => go({ name: "all" })}
+        onBudget={() => go({ name: "budget" })}
+        monthlyBudget={store.monthlyBudget}
       />
     );
   } else if (route.name === "all") {
@@ -224,7 +229,7 @@ function Shell() {
     <div className="app">
       <div className="ambient" />
       {!ready ? (
-        <div className="boot">语音记账</div>
+        <div className="boot">闪记</div>
       ) : (
         <>
           {pageTitle ? null : (
@@ -248,15 +253,15 @@ function Shell() {
             <motion.div
               key={route.name}
               className="pane"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: TAB_S, ease: EASE_A }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduce ? 0.12 : TAB_FADE_S, ease: "easeOut" }}
             >
               {screen}
             </motion.div>
           </main>
 
-          {showChrome && <MicButton label="语音记账" onClick={() => openVoice()} />}
+          {showChrome && <MicButton label="说一句记一笔" onClick={() => openVoice()} />}
           {showChrome && <BottomNav current={tabFor(route)} onChange={(tab) => go({ name: tab })} />}
 
           <VoiceSheet
@@ -268,7 +273,7 @@ function Shell() {
           />
           {toast ? (
             <div className="toast" role="status">
-              <span>{toast.kind === "delete" ? `已删除 ${toast.transaction.title}` : `已记入 ${toast.transactions.length} 笔`}</span>
+              <span>{toast.kind === "delete" ? "已删除" : `已记 ${toast.transactions.length} 笔`}</span>
               <button type="button" onClick={undoToast}>
                 撤销
               </button>

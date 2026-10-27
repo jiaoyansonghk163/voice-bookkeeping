@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
-import { EASE_A, FAB_PRESS_S, FAB_RELEASE_S } from "@/lib/motion";
+import { ChartColumn, PieChart, ReceiptText, User, type LucideIcon } from "lucide-react";
+import { EASE_A, FAB_PRESS_S, FAB_RELEASE_S, NAV_SPRING } from "@/lib/motion";
 
-export type TabId = "home" | "stats" | "me";
+export type TabId = "home" | "stats" | "budget" | "me";
 
 function MicGlyph() {
   return (
@@ -54,21 +55,37 @@ export function MicButton({
   );
 }
 
+const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
+  { id: "home", label: "记账", Icon: ReceiptText },
+  { id: "stats", label: "统计", Icon: ChartColumn },
+  { id: "budget", label: "预算", Icon: PieChart },
+  { id: "me", label: "我的", Icon: User },
+];
+
 export function BottomNav({ current, onChange }: { current: TabId; onChange: (tab: TabId) => void }) {
+  const reduce = useReducedMotion();
   return (
-    <nav className="tab" aria-label="主导航">
-      <button type="button" className={cn("ti", current === "home" && "on")} onClick={() => onChange("home")}>
-        <i />
-        流水
-      </button>
-      <button type="button" className={cn("ti", current === "stats" && "on")} onClick={() => onChange("stats")}>
-        <i />
-        统计
-      </button>
-      <button type="button" className={cn("ti", current === "me" && "on")} onClick={() => onChange("me")}>
-        <i />
-        我的
-      </button>
+    <nav className="tab" aria-label="主导航" role="tablist">
+      {TABS.map(({ id, label, Icon }, index) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={current === id}
+          className={cn("ti", current === id && "on", index >= 2 && "after-mic")}
+          onClick={() => onChange(id)}
+        >
+          {current === id ? (
+            <motion.span
+              layoutId="tab-indicator"
+              className="ti-pill"
+              transition={reduce ? { duration: 0.12 } : NAV_SPRING}
+            />
+          ) : null}
+          <Icon size={18} strokeWidth={2} aria-hidden="true" className="ti-ic" />
+          <span className="ti-lab">{label}</span>
+        </button>
+      ))}
     </nav>
   );
 }

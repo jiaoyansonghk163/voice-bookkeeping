@@ -36,8 +36,10 @@ export function BudgetScreen({
 
   return (
     <>
-      <section className="panel block rise" style={{ marginTop: 0 }}>
-        <div className="ph">
+      <h1 className="page-title">预算</h1>
+      <p className="page-sub">本月 · {now.getMonth() + 1}月</p>
+      <section className="glass hero-card">
+        <div className="ph" style={{ marginTop: 0 }}>
           <h2>本月预算</h2>
           <span className="num" style={{ color: "var(--text)", fontWeight: 600 }}>
             {monthlyBudget == null ? "未设置" : `¥${formatYuanTrim(monthlyBudget)}`}
@@ -56,12 +58,12 @@ export function BudgetScreen({
             )}
           </div>
         </div>
-        <div className="bar" style={{ height: 8, marginTop: 8 }}>
-          <i style={{ width: `${Math.round((kpis.bar ?? 0) * 100)}%` }} />
+        <div className="pbar" style={{ marginTop: 8 }}>
+          <i style={{ width: `${Math.round((kpis.bar == null ? 0 : 1 - kpis.bar) * 100)}%` }} />
         </div>
         <div className="days" style={{ marginTop: 14 }}>
-          <span className="num">已支出 ¥{formatYuanTrim(kpis.monthSpend)}</span>
-          <span className="on">存在本机</span>
+          <span className="num">已用 ¥{formatYuanTrim(kpis.monthSpend)}</span>
+          <span className="on">{monthlyBudget == null ? "还没设预算" : kpis.budgetLeft != null && kpis.budgetLeft < 0 ? `已超出 ¥${formatYuanTrim(-kpis.budgetLeft)}` : "存在本机"}</span>
         </div>
         <form
           className="budget-field"
@@ -73,12 +75,12 @@ export function BudgetScreen({
           <input
             inputMode="decimal"
             aria-label="月预算"
-            placeholder="设置月预算"
+            placeholder="设置本月预算"
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
-          <button type="submit" className="quiet-btn">
-            保存
+          <button type="submit" className="save-btn press">
+            保存预算
           </button>
         </form>
       </section>

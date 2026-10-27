@@ -20,10 +20,9 @@ import {
   CARD_STAGGER_S,
   CROSS_FADE_S,
   EASE_A,
-  PULSE_S,
-  SHEET_IN_S,
   SHEET_OUT_S,
-  WAVE_HEIGHTS,
+  SHEET_SPRING,
+  VOICE_BARS,
 } from "@/lib/motion";
 import { VOICE_COPY, sourceLine } from "@/lib/voice-copy";
 import type { CategoryId, ParsedExpense } from "@/lib/types";
@@ -38,11 +37,21 @@ interface DraftEntry extends EditableDraft {
   key: string;
 }
 
-function StaticWave() {
+function VoiceWave({ active }: { active: boolean }) {
+  const reduce = useReducedMotion();
   return (
-    <div className="wave" aria-hidden="true">
-      {WAVE_HEIGHTS.map((height, index) => (
-        <i key={index} style={{ height }} />
+    <div className="vwave" aria-hidden="true">
+      {VOICE_BARS.map((peak, index) => (
+        <motion.i
+          key={index}
+          initial={{ scaleY: 0.25 }}
+          animate={reduce || !active ? { scaleY: peak } : { scaleY: [0.25, peak, 0.3, peak * 0.8, 0.25] }}
+          transition={
+            reduce || !active
+              ? { duration: 0.12 }
+              : { duration: 1.1 + (index % 3) * 0.15, ease: "easeInOut", repeat: Infinity, delay: index * 0.07 }
+          }
+        />
       ))}
     </div>
   );
@@ -346,6 +355,7 @@ export function VoiceSheet({
         }}
         canSave={ready}
         onCancel={requestClose}
+        onRetake={startRecording}
         onCommit={confirmEntries}
       />
     );
@@ -355,6 +365,7 @@ export function VoiceSheet({
         title={title}
         subtitle={subtitle}
         transcript={transcript}
+        quiet={capture === "quiet"}
         onType={() => switchToType(transcriptRef.current)}
         onFinish={finish}
       />
@@ -362,9 +373,11 @@ export function VoiceSheet({
   } else if (pane === "failed") {
     body = (
       <div className="listen-col">
-        <h1 className="listen-title">{VOICE_COPY.failTitle}</h1>
-        <p className="listen-sub">{VOICE_COPY.failSubtitle}</p>
-        <button type="button" className="primary wide" onClick={() => switchToType(transcriptRef.current)}>
+        <h1 className="listen-title err">{VOICE_COPY.failTitle}</h1>
+        <button type="button" className="primary wide press" onClick={startRecording}>
+          {VOICE_COPY.retake}
+        </button>
+        <button type="button" className="text-link" onClick={() => switchToType(transcriptRef.current)}>
           {VOICE_COPY.typeInstead}
         </button>
       </div>
@@ -402,10 +415,10 @@ export function VoiceSheet({
           role="dialog"
           aria-modal="true"
           aria-label={phase === "review" ? VOICE_COPY.confirmTitle : title}
-          initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
-          animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
-          exit={reduce ? { opacity: 0, transition: sheetExit } : { opacity: 0, y: 12, transition: sheetExit }}
-          transition={{ duration: SHEET_IN_S, ease: EASE_A }}
+          initial={reduce ? { opacity: 0 } : { y: "100%" }}
+          animate={reduce ? { opacity: 1 } : { y: 0 }}
+          exit={reduce ? { opacity: 0, transition: { duration: 0.12 } } : { y: "100%", transition: sheetExit }}
+          transition={reduce ? { duration: 0.12 } : SHEET_SPRING}
         >
           <div className="slot">
             <AnimatePresence>
@@ -424,9 +437,11 @@ function ListenStage({
   title,
   subtitle,
   transcript,
+  quiet,
   onType,
   onFinish,
 }: {
+  quiet: boolean;
   title: string;
   subtitle: string;
   transcript: string;
@@ -436,10 +451,9 @@ function ListenStage({
   return (
     <>
       <div className="listen-col">
-        <ListeningMic />
         <h1 className="listen-title">{title}</h1>
-        {transcript.trim() ? <p className="heard">{transcript}</p> : null}
-        <StaticWave />
+        <VoiceWave active={!quiet} />
+        {transcript.trim() ? <p className="heard">“{transcript}”</p> : null}
         <p className="listen-sub">{subtitle}</p>
         <button type="button" className="text-link" onClick={onType}>
           {VOICE_COPY.typeInstead}
@@ -506,6 +520,7 @@ function ConfirmEntries({
   onRemove,
   canSave,
   onCancel,
+  onRetake,
   onCommit,
 }: {
   entries: DraftEntry[];
@@ -515,6 +530,7 @@ function ConfirmEntries({
   onRemove: (key: string) => void;
   canSave: boolean;
   onCancel: () => void;
+  onRetake: () => void;
   onCommit: () => void;
 }) {
   const many = entries.length > 1;
@@ -591,13 +607,16 @@ function ConfirmEntries({
         ))}
       </div>
       <div className="pair">
-        <button type="button" className="ghost" onClick={onCancel}>
-          {VOICE_COPY.cancel}
+        <button type="button" className="ghost press" onClick={onRetake}>
+          {VOICE_COPY.retake}
         </button>
-        <button type="button" className="primary" onClick={onCommit} disabled={!canSave}>
+        <button type="button" className="primary press" onClick={onCommit} disabled={!canSave}>
           {VOICE_COPY.confirmAll}
         </button>
       </div>
+      <button type="button" className="text-link cancel-link" onClick={onCancel}>
+        {VOICE_COPY.cancel}
+      </button>
     </div>
   );
 }
@@ -615,28 +634,6 @@ function CrossFade({ className, children }: { className?: string; children: Reac
     >
       {children}
     </motion.div>
-  );
-}
-
-function ListeningMic() {
-  const reduce = useReducedMotion();
-  return (
-    <div className="halo" aria-hidden="true">
-      <motion.span
-        className="halo-ring"
-        initial={{ opacity: reduce ? 0.4 : 0.25 }}
-        animate={reduce ? { opacity: 0.4 } : { opacity: [0.25, 0.55, 0.25] }}
-        transition={reduce ? { duration: 0 } : { duration: PULSE_S, ease: "easeInOut", repeat: Infinity, repeatType: "loop" }}
-      />
-      <motion.span
-        className="halo-core"
-        initial={{ scale: 1 }}
-        animate={reduce ? { scale: 1 } : { scale: [1, 1.04, 1] }}
-        transition={reduce ? { duration: 0 } : { duration: PULSE_S, ease: "easeInOut", repeat: Infinity, repeatType: "loop", times: [0, 0.5, 1] }}
-      >
-        <MicMark />
-      </motion.span>
-    </div>
   );
 }
 

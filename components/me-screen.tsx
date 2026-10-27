@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { applyImport, parseBackup, serializeBackup, type ImportMode, type LedgerState } from "@/lib/backup";
+import { ChevronRight } from "lucide-react";
 import { categoryDetail } from "@/lib/categories";
 import { formatDayGroup, formatYuanTrim } from "@/lib/format";
 
@@ -33,10 +34,10 @@ export function MeScreen({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "语音记账.json";
+    link.download = "闪记.json";
     link.click();
     URL.revokeObjectURL(url);
-    setNote("已下载到本机，文件不会上传。");
+    setNote("已导出,文件不会上传。");
   };
 
   const importFile = async (file: File | undefined) => {
@@ -44,7 +45,7 @@ export function MeScreen({
     const next = parseBackup(await file.text());
     if (!next) {
       setPending(null);
-      setNote("这个文件不是语音记账的备份。");
+      setNote("这个文件不是闪记的备份。");
       return;
     }
     applying.current = false;
@@ -63,14 +64,14 @@ export function MeScreen({
     if (mode === "append") {
       setNote(
         result.added === 0
-          ? "没有新账单。这份里的都已在账上。"
+          ? "没有新的账,这份里的都已记过。"
           : result.skipped > 0
-            ? `已追加 ${result.added} 笔，跳过 ${result.skipped} 笔重复。`
-            : `已追加 ${result.added} 笔，只写在这台设备上。`,
+            ? `已追加 ${result.added} 笔,跳过 ${result.skipped} 笔重复。`
+            : `已追加 ${result.added} 笔,只写在这台设备上。`,
       );
       return;
     }
-    setNote(`已替换为 ${result.added} 笔，只写在这台设备上。`);
+    setNote(`已替换为 ${result.added} 笔,只写在这台设备上。`);
   };
 
   const cancelPreview = () => {
@@ -78,25 +79,35 @@ export function MeScreen({
     setPending(null);
   };
 
+  const Row = ({ label, onClick }: { label: string; onClick: () => void }) => (
+    <button type="button" className="set-row press" onClick={onClick}>
+      <span>{label}</span>
+      <ChevronRight size={18} aria-hidden="true" />
+    </button>
+  );
+
   return (
-    <section className={compact ? "backup" : "panel block rise me"}>
+    <section className={compact ? "backup" : "me"}>
+      {compact ? null : <h1 className="page-title">我的</h1>}
       {compact ? null : (
-        <div className="avatar" aria-hidden="true">
-          CA
+        <div className="me-head">
+          <div className="avatar" aria-hidden="true">
+            闪
+          </div>
+          <div>
+            <b>闪记</b>
+            <p>说完,账已记好</p>
+          </div>
         </div>
       )}
-      <h2>{compact ? "备份" : "我的"}</h2>
-      <p>账单只存在这台设备的浏览器里，不上传，也没有统计代码。</p>
       <div className="stack">
-        <button type="button" className="quiet-btn" onClick={onOpenBudget}>
-          预算
-        </button>
-        <button type="button" className="quiet-btn" onClick={exportFile}>
-          导出账单
-        </button>
-        <button type="button" className="quiet-btn" onClick={() => fileRef.current?.click()}>
-          导入账单
-        </button>
+        <div className="glass set-list">
+          <Row label="预算" onClick={onOpenBudget} />
+          <Row label="导出备份" onClick={exportFile} />
+          <Row label="导入备份" onClick={() => fileRef.current?.click()} />
+          <Row label={demoOn ? "移除示例数据" : "载入示例数据"} onClick={demoOn ? onClearDemo : onLoadDemo} />
+        </div>
+        <p className="fine">数据存在这台手机上,建议定期导出备份</p>
         <input
           ref={fileRef}
           className="file"
@@ -139,16 +150,6 @@ export function MeScreen({
           </div>
         ) : null}
       </div>
-      <p className="fine">示例数据是可选的虚构账单，用来看看界面，可以随时去掉。</p>
-      {demoOn ? (
-        <button type="button" className="quiet-btn" onClick={onClearDemo}>
-          移除示例数据
-        </button>
-      ) : (
-        <button type="button" className="quiet-btn" onClick={onLoadDemo}>
-          载入示例数据
-        </button>
-      )}
       {note ? <p className="fine">{note}</p> : null}
     </section>
   );

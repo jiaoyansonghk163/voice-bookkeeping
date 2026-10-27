@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { CategoryIcon } from "@/components/category-icon";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatBillWhen, formatYuan } from "@/lib/format";
@@ -75,12 +76,15 @@ export function TxnRow({
             setOffset(0);
           }}
         >
-          <span className="bill-top">
-            <span className="pill">{categoryLabel(transaction.category)}</span>
-            <span className="bill-amt">-¥{formatYuan(transaction.amount)}</span>
+          <CategoryIcon category={transaction.category} />
+          <span className="bill-main">
+            <span className="bill-title">{transaction.title}</span>
+            <span className="bill-sub">
+              {categoryLabel(transaction.category)} · {formatBillWhen(new Date(transaction.createdAt), now)}
+            </span>
           </span>
-          <span className="bill-sub">
-            {transaction.title} · {formatBillWhen(new Date(transaction.createdAt), now)}
+          <span className="bill-amt">
+            <span className="sr-only">支出 </span>-¥{formatYuan(transaction.amount)}
           </span>
         </button>
         {canDelete && sliding ? (
