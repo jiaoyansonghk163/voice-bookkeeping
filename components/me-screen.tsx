@@ -1,5 +1,7 @@
 "use client";
 
+import appIcon from "@/public/icon-512.png";
+
 import { useRef, useState } from "react";
 import { applyImport, parseBackup, serializeBackup, type ImportMode, type LedgerState } from "@/lib/backup";
 import { ChevronRight } from "lucide-react";
@@ -102,10 +104,7 @@ export function MeScreen({
       {compact ? null : (
         <div className="me-head">
           <div className="avatar" aria-hidden="true">
-            <svg viewBox="0 0 512 512" width="56" height="56">
-              <rect width="512" height="512" fill="#0A0A0A" />
-              <path d="M292 96 168 288h88l-36 128 124-192h-88Z" fill="#FFFFFF" />
-            </svg>
+            <img src={appIcon.src} alt="" width={56} height={56} />
           </div>
           <div>
             <b>闪记</b>

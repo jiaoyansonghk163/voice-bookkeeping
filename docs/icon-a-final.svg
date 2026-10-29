@@ -1,0 +1,11 @@
+<svg id="icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A3A3E"/><stop offset="0.55" stop-color="#151517"/><stop offset="1" stop-color="#050505"/></linearGradient>
+<linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9CBD0"/></linearGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.5"/></filter>
+</defs>
+<rect width="512" height="512" fill="url(#bg)"/>
+<rect width="512" height="256" fill="url(#sheen)"/>
+<path d="M290 112 188 282h78l-30 118 112-176h-80Z" fill="url(#bolt)" stroke="url(#bolt)" stroke-width="44" stroke-linejoin="round" filter="url(#sh)"/>
+</svg>
