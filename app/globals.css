@@ -2535,3 +2535,14 @@ button:active { transition-timing-function: var(--spring); }
 .scroll.page { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .me .avatar, .me-head .avatar { overflow: hidden; border-radius: 14px; background: #0A0A0A; }
 .me-head .avatar svg { display: block; }
+
+/* 多笔账时,记下/重说/取消固定在弹层底部,不用滑到最底才看得到。 */
+.confirm-dock {
+  position: sticky;
+  bottom: -24px;
+  margin: 12px -20px -24px;
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgba(247, 249, 250, 0), rgba(247, 249, 250, 0.96) 28%);
+}
+.confirm-dock .pair { margin-top: 0; }
+.confirm-dock .cancel-link { display: block; margin: 6px auto 0; }

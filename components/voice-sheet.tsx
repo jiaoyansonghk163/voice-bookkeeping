@@ -670,6 +670,7 @@ function ConfirmEntries({
           </motion.article>
         ))}
       </div>
+      <div className="confirm-dock">
       <div className="pair">
         <button type="button" className="ghost press" onClick={onRetake}>
           {VOICE_COPY.retake}
@@ -681,6 +682,7 @@ function ConfirmEntries({
       <button type="button" className="text-link cancel-link" onClick={onCancel}>
         {VOICE_COPY.cancel}
       </button>
+      </div>
     </div>
   );
 }
