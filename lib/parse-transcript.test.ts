@@ -153,3 +153,19 @@ test("rejects phrases without a confident amount", () => {
   assert.equal(parseTranscript("记一笔午饭").ok, false);
   assert.equal(parseTranscript("").ok, false);
 });
+
+test("发了五千工资 reads the item after the amount", () => {
+  const r = parseTranscript("发了五千工资", NOON);
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.entries[0].amount, 5000);
+    assert.equal(r.entries[0].category, "salary");
+    assert.equal(r.entries[0].kind, "income");
+  }
+  const r2 = parseTranscript("昨天打车32,中午拉面28,发了五千工资", NOON);
+  assert.ok(r2.ok);
+  if (r2.ok) assert.deepEqual(r2.entries.map((e) => e.category), ["transit", "food", "salary"]);
+  const r3 = parseTranscript("收到朋友红包两百", NOON);
+  assert.ok(r3.ok);
+  if (r3.ok) assert.equal(r3.entries[0].category, "redpacket");
+});

@@ -298,7 +298,8 @@ export function parseTranscript(transcript: string, now: Date = new Date()): Par
     previous = match.end;
 
     // 花了35午饭: the amount comes first, so the title is the text after it.
-    if (!stripDate(clause, now).rest) {
+    // 发了五千工资 / 收到两百红包: the verb alone is not a title, so read the item after the amount.
+    if (!stripDate(clause, now).rest.replace(/^(?:发了|收到了?|收了|入账了?|到账了?)$/, "")) {
       const nextIndex = index + 1 < matches.length ? matches[index + 1].index : text.length;
       const after = text.slice(match.end, nextIndex);
       const lastOne = index + 1 >= matches.length;
