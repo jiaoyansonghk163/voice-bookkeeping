@@ -2251,10 +2251,10 @@ body { color-scheme: light; font-family: -apple-system, "SF Pro Text", "PingFang
     radial-gradient(380px 320px at 110% 30%, rgba(120, 170, 255, 0.18), transparent 70%),
     #F4F6F8;
 }
+/* Cards sit on a flat page, so a live blur only costs frames while scrolling.
+   Blur is kept for the floating nav and the sheets, which sit over moving content. */
 .glass, .panel, .card-stat, .card {
-  background: rgba(255, 255, 255, 0.62);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
-  backdrop-filter: blur(24px) saturate(1.6);
+  background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.8);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px rgba(20, 40, 50, 0.07);
   border-radius: 22px;
